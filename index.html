@@ -228,6 +228,25 @@
             cursor: pointer;
             font-size: 16px;
         }
+        .patient-item .edit-btn {
+            position: absolute;
+            top: 10px;
+            right: 45px;
+            background: rgba(59, 130, 246, 0.2);
+            border: none;
+            color: #60a5fa;
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .patient-item .notes {
+            font-size: 12px;
+            color: var(--warning);
+            font-style: italic;
+            margin-top: 4px;
+        }
 
         .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
         .stat-box { background: var(--bg); padding: 14px; border-radius: 10px; text-align: center; }
@@ -290,15 +309,16 @@
 
         <div class="form-group">
             <label>Cotations</label>
-            <div class="cotation-grid">
+            <div class="cotation-grid" style="grid-template-columns: 1fr 1fr 1fr;">
                 <div class="cotation-item">
                     <input type="checkbox" id="cotVG" checked>
                     <label for="cotVG"><span>VG</span><small>30€</small></label>
                 </div>
                 <div class="cotation-item">
-                    <input type="checkbox" id="cotMD" checked>
-                    <label for="cotMD"><span>MD</span><small>10€</small></label>
+                    <input type="checkbox" id="cotG">
+                    <label for="cotG"><span>G</span><small>30€ 2ème</small></label>
                 </div>
+                <div></div>
                 <div class="cotation-item">
                     <input type="checkbox" id="cotSNP">
                     <label for="cotSNP"><span>SNP</span><small>15€</small></label>
@@ -306,6 +326,10 @@
                 <div class="cotation-item">
                     <input type="checkbox" id="cotMVR">
                     <label for="cotMVR"><span>MVR</span><small>10€</small></label>
+                </div>
+                <div class="cotation-item">
+                    <input type="checkbox" id="cotMD" checked>
+                    <label for="cotMD"><span>MD</span><small>10€</small></label>
                 </div>
                 <div class="cotation-item">
                     <input type="checkbox" id="cotMEG">
@@ -316,6 +340,11 @@
                     <label for="cotMOP"><span>MOP</span><small>5€ ≥80a</small></label>
                 </div>
             </div>
+        </div>
+
+        <div class="form-group">
+            <label>Notes</label>
+            <input type="text" id="notes" placeholder="Commentaire (optionnel)">
         </div>
 
         <div class="form-row">
@@ -385,10 +414,11 @@
     </div>
 
     <script>
-        const TARIFS = { VG: 30, MD: 10, SNP: 15, MVR: 10, MEG: 5, MOP: 5 };
+        const TARIFS = { VG: 30, G: 30, MD: 10, SNP: 15, MVR: 10, MEG: 5, MOP: 5 };
         const IK_TAUX = 0.61;
 
-        let patients = [];
+        var patients = [];
+        var editingId = null;
         try {
             patients = JSON.parse(localStorage.getItem('sosPatients') || '[]');
         } catch(e) {
@@ -410,15 +440,16 @@
         }
 
         function getCotations() {
-            const codes = [];
-            let total = 0;
+            var codes = [];
+            var total = 0;
             if (document.getElementById('cotVG').checked) { codes.push('VG'); total += TARIFS.VG; }
+            if (document.getElementById('cotG').checked) { codes.push('G'); total += TARIFS.G; }
             if (document.getElementById('cotMD').checked) { codes.push('MD'); total += TARIFS.MD; }
             if (document.getElementById('cotSNP').checked) { codes.push('SNP'); total += TARIFS.SNP; }
             if (document.getElementById('cotMVR').checked) { codes.push('MVR'); total += TARIFS.MVR; }
             if (document.getElementById('cotMEG').checked) { codes.push('MEG'); total += TARIFS.MEG; }
             if (document.getElementById('cotMOP').checked) { codes.push('MOP'); total += TARIFS.MOP; }
-            return { codes, total };
+            return { codes: codes, total: total };
         }
 
         function updateInterface() {
@@ -479,22 +510,23 @@
         }
 
         function ajouterPatient() {
-            const nomPrenom = document.getElementById('nomPrenom').value.trim();
+            var nomPrenom = document.getElementById('nomPrenom').value.trim();
             if (!nomPrenom) {
                 alert('Veuillez entrer le nom du patient');
                 return;
             }
 
-            const situation = document.querySelector('input[name="situation"]:checked').value;
-            const tpChoice = document.querySelector('input[name="tpChoice"]:checked').value;
-            const cotations = getCotations();
-            const de = situation === 'normale' ? (parseFloat(document.getElementById('de').value) || 0) : 0;
-            const ikKm = parseFloat(document.getElementById('ikKm').value) || 0;
-            const ik = calculerIK(ikKm);
-            const paiement = document.querySelector('input[name="paiement"]:checked').value;
+            var situation = document.querySelector('input[name="situation"]:checked').value;
+            var tpChoice = document.querySelector('input[name="tpChoice"]:checked').value;
+            var cotations = getCotations();
+            var de = situation === 'normale' ? (parseFloat(document.getElementById('de').value) || 0) : 0;
+            var ikKm = parseFloat(document.getElementById('ikKm').value) || 0;
+            var ik = calculerIK(ikKm);
+            var paiement = document.querySelector('input[name="paiement"]:checked').value;
+            var notes = document.getElementById('notes').value.trim();
 
-            const totalActes = cotations.total;
-            let amo, amc, patientPaye, tiersPayantSecu;
+            var totalActes = cotations.total;
+            var amo, amc, patientPaye, tiersPayantSecu;
 
             if (situation === 'normale') {
                 amo = Math.round(totalActes * 0.7 * 100) / 100;
@@ -513,26 +545,37 @@
                 tiersPayantSecu = amo + ik;
             }
 
-            const patient = {
-                id: Date.now(),
-                nomPrenom,
+            var patient = {
+                id: editingId || Date.now(),
+                nomPrenom: nomPrenom,
                 numSecu: document.getElementById('numSecu').value.trim(),
                 codeOrga: document.getElementById('codeOrga').value.trim(),
-                situation,
+                situation: situation,
                 tpChoice: situation === 'normale' ? tpChoice : 'tp',
                 cotations: cotations.codes,
-                totalActes,
-                amo,
-                amc,
-                de,
-                ikKm,
-                ik,
+                totalActes: totalActes,
+                amo: amo,
+                amc: amc,
+                de: de,
+                ikKm: ikKm,
+                ik: ik,
                 paiement: situation === 'normale' ? paiement : 'aucun',
-                patientPaye,
-                tiersPayantSecu
+                patientPaye: patientPaye,
+                tiersPayantSecu: tiersPayantSecu,
+                notes: notes
             };
 
-            patients.push(patient);
+            if (editingId) {
+                var index = patients.findIndex(function(p) { return p.id === editingId; });
+                if (index !== -1) {
+                    patients[index] = patient;
+                }
+                editingId = null;
+                document.getElementById('btnAjouter').textContent = 'Ajouter Patient';
+            } else {
+                patients.push(patient);
+            }
+
             sauvegarder();
             afficherPatients();
             resetForm();
@@ -545,6 +588,7 @@
             document.getElementById('sitNormale').checked = true;
             document.getElementById('tpChoiceTout').checked = true;
             document.getElementById('cotVG').checked = true;
+            document.getElementById('cotG').checked = false;
             document.getElementById('cotMD').checked = true;
             document.getElementById('cotSNP').checked = false;
             document.getElementById('cotMVR').checked = false;
@@ -552,19 +596,59 @@
             document.getElementById('cotMOP').checked = false;
             document.getElementById('de').value = 0;
             document.getElementById('ikKm').value = 0;
+            document.getElementById('notes').value = '';
             document.getElementById('paieCB').checked = true;
             document.getElementById('ikResult').textContent = 'IK : 0,00 €';
+            editingId = null;
+            document.getElementById('btnAjouter').textContent = 'Ajouter Patient';
             updateInterface();
         }
 
         function supprimerPatient(id) {
-            patients = patients.filter(p => p.id !== id);
-            sauvegarder();
-            afficherPatients();
+            if (confirm('Supprimer ce patient ?')) {
+                patients = patients.filter(function(p) { return p.id !== id; });
+                sauvegarder();
+                afficherPatients();
+            }
+        }
+
+        function modifierPatient(id) {
+            var p = patients.find(function(pat) { return pat.id === id; });
+            if (!p) return;
+
+            editingId = id;
+            document.getElementById('nomPrenom').value = p.nomPrenom;
+            document.getElementById('numSecu').value = p.numSecu || '';
+            document.getElementById('codeOrga').value = p.codeOrga || '';
+            document.getElementById('notes').value = p.notes || '';
+            
+            document.querySelector('input[name="situation"][value="' + p.situation + '"]').checked = true;
+            if (p.situation === 'normale') {
+                document.querySelector('input[name="tpChoice"][value="' + p.tpChoice + '"]').checked = true;
+                document.querySelector('input[name="paiement"][value="' + p.paiement + '"]').checked = true;
+            }
+            
+            document.getElementById('cotVG').checked = p.cotations.indexOf('VG') !== -1;
+            document.getElementById('cotG').checked = p.cotations.indexOf('G') !== -1;
+            document.getElementById('cotMD').checked = p.cotations.indexOf('MD') !== -1;
+            document.getElementById('cotSNP').checked = p.cotations.indexOf('SNP') !== -1;
+            document.getElementById('cotMVR').checked = p.cotations.indexOf('MVR') !== -1;
+            document.getElementById('cotMEG').checked = p.cotations.indexOf('MEG') !== -1;
+            document.getElementById('cotMOP').checked = p.cotations.indexOf('MOP') !== -1;
+            
+            document.getElementById('de').value = p.de || 0;
+            document.getElementById('ikKm').value = p.ikKm || 0;
+            document.getElementById('ikResult').textContent = 'IK : ' + formatMontant(p.ik) + ' (' + p.ikKm + ' km x ' + IK_TAUX + ' €)';
+            
+            document.getElementById('btnAjouter').textContent = 'Modifier Patient';
+            updateInterface();
+            calculerPreview();
+            
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         function afficherPatients() {
-            const container = document.getElementById('patientList');
+            var container = document.getElementById('patientList');
             document.getElementById('patientCount').textContent = patients.length;
 
             if (patients.length === 0) {
@@ -573,22 +657,24 @@
                 return;
             }
 
-            container.innerHTML = patients.map((p, index) => 
-                '<div class="patient-item">' +
+            container.innerHTML = patients.map(function(p, index) {
+                return '<div class="patient-item">' +
                     '<button class="delete-btn" onclick="supprimerPatient(' + p.id + ')">×</button>' +
+                    '<button class="edit-btn" onclick="modifierPatient(' + p.id + ')">✎</button>' +
                     '<div class="name">' + (index + 1) + '. ' + p.nomPrenom + '</div>' +
                     '<div class="details">' +
                         p.situation.toUpperCase() + (p.situation === 'normale' ? (p.tpChoice === 'tout' ? ' (Tout)' : ' (TP)') : '') + ' | ' + p.cotations.join('+') +
                         (p.numSecu ? ' | ' + p.numSecu.substring(0, 7) + '...' : '') +
                     '</div>' +
+                    (p.notes ? '<div class="notes">' + p.notes + '</div>' : '') +
                     '<div class="amounts">' +
                         (p.tiersPayantSecu > 0 ? '<span class="amo">Sécu ' + formatMontant(p.tiersPayantSecu) + '</span>' : '') +
                         (p.patientPaye > 0 ? '<span class="amc">Patient ' + formatMontant(p.patientPaye) + '</span>' : '') +
                         (p.de > 0 ? '<span class="de">DE ' + formatMontant(p.de) + '</span>' : '') +
                         (p.ik > 0 ? '<span class="ik">IK ' + formatMontant(p.ik) + '</span>' : '') +
                     '</div>' +
-                '</div>'
-            ).join('');
+                '</div>';
+            }).join('');
 
             updateTotals();
         }
@@ -656,16 +742,17 @@
                         formatMontant(p.de),
                         formatMontant(p.ik),
                         formatMontant(p.amo + p.amc + p.de + p.ik),
-                        p.patientPaye > 0 ? formatMontant(p.patientPaye) + ' ' + p.paiement.toUpperCase() : '-'
+                        p.patientPaye > 0 ? formatMontant(p.patientPaye) + ' ' + p.paiement.toUpperCase() : '-',
+                        p.notes || ''
                     ];
                 });
 
                 doc.autoTable({
                     startY: 35,
-                    head: [['N', 'Nom', 'N Secu', 'Orga', 'Sit.', 'Cotation', 'AMO', 'AMC', 'DE', 'IK', 'Total', 'Paiement']],
+                    head: [['N', 'Nom', 'N Secu', 'Orga', 'Sit.', 'Cotation', 'AMO', 'AMC', 'DE', 'IK', 'Total', 'Paiement', 'Notes']],
                     body: tableData,
                     theme: 'grid',
-                    styles: { fontSize: 7, cellPadding: 2 },
+                    styles: { fontSize: 6, cellPadding: 1 },
                     headStyles: { fillColor: [59, 130, 246], textColor: 255 }
                 });
 
