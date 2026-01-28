@@ -253,15 +253,13 @@
             <input type="text" id="nomPrenom" placeholder="Nom Prénom" autocomplete="off">
         </div>
 
-        <div class="form-row">
-            <div class="form-group">
-                <label>N° Sécu</label>
-                <input type="text" id="numSecu" placeholder="1 85 04 13..." inputmode="numeric">
-            </div>
-            <div class="form-group">
-                <label>Code Orga</label>
-                <input type="text" id="codeOrga" placeholder="01 131 0421" maxlength="15">
-            </div>
+        <div class="form-group">
+            <label>N° Sécu</label>
+            <input type="text" id="numSecu" placeholder="2020513155268 45" inputmode="numeric" maxlength="17">
+        </div>
+        <div class="form-group">
+            <label>Code Orga</label>
+            <input type="text" id="codeOrga" placeholder="01 131 0341" inputmode="numeric" maxlength="13">
         </div>
 
         <div class="form-group">
@@ -735,6 +733,28 @@
         document.getElementById('btnAjouter').addEventListener('click', ajouterPatient);
         document.getElementById('btnReinit').addEventListener('click', reinitialiser);
         document.getElementById('btnPDF').addEventListener('click', genererPDF);
+
+        // Formatage automatique N° Sécu : XXXXXXXXXXXXX XX (13 + 2)
+        document.getElementById('numSecu').addEventListener('input', function() {
+            var val = this.value.replace(/\s/g, '').replace(/\D/g, '');
+            if (val.length > 15) val = val.substring(0, 15);
+            if (val.length > 13) {
+                this.value = val.substring(0, 13) + ' ' + val.substring(13);
+            } else {
+                this.value = val;
+            }
+        });
+
+        // Formatage automatique Code Orga : XX XXX XXXX
+        document.getElementById('codeOrga').addEventListener('input', function() {
+            var val = this.value.replace(/\s/g, '').replace(/\D/g, '');
+            if (val.length > 9) val = val.substring(0, 9);
+            var formatted = '';
+            if (val.length > 0) formatted = val.substring(0, Math.min(2, val.length));
+            if (val.length > 2) formatted += ' ' + val.substring(2, Math.min(5, val.length));
+            if (val.length > 5) formatted += ' ' + val.substring(5);
+            this.value = formatted;
+        });
 
         // Init
         afficherPatients();
