@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>SOS Médecin - Cotations</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        :root {
+            --bg: #0f172a;
+            --bg-card: #1e293b;
+            --bg-input: #334155;
+            --accent: #3b82f6;
+            --accent-dark: #2563eb;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text: #f8fafc;
+            --text-dim: #94a3b8;
+            --border: #475569;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 16px;
+            padding-bottom: 100px;
+        }
+
+        h1 { font-size: 20px; text-align: center; margin-bottom: 8px; }
+        .date { text-align: center; color: var(--text-dim); font-size: 14px; margin-bottom: 20px; }
+
+        .card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+
+        .card h2 {
+            font-size: 16px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card h2::before {
+            content: '';
+            width: 4px;
+            height: 18px;
+            background: var(--accent);
+            border-radius: 2px;
+        }
+
+        .form-group { margin-bottom: 16px; }
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 14px 16px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text);
+            font-size: 16px;
+            -webkit-appearance: none;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+        .situation-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .situation-grid label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 8px;
+            background: var(--bg-input);
+            border: 2px solid transparent;
+            border-radius: 10px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: none;
+            letter-spacing: 0;
+        }
+
+        .situation-grid input { display: none; }
+        .situation-grid input:checked + label {
+            border-color: var(--accent);
+            background: rgba(59, 130, 246, 0.2);
+        }
+
+        .cotation-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .cotation-item { position: relative; }
+        .cotation-item input { display: none; }
+        .cotation-item label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 12px 8px;
+            background: var(--bg-input);
+            border: 2px solid transparent;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .cotation-item label span { font-size: 14px; font-weight: 600; }
+        .cotation-item label small { font-size: 11px; color: var(--text-dim); }
+        .cotation-item input:checked + label {
+            border-color: var(--success);
+            background: rgba(16, 185, 129, 0.2);
+        }
+
+        .paiement-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .paiement-grid label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 8px;
+            background: var(--bg-input);
+            border: 2px solid transparent;
+            border-radius: 10px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .paiement-grid input { display: none; }
+        .paiement-grid input:checked + label {
+            border-color: var(--warning);
+            background: rgba(245, 158, 11, 0.2);
+        }
+
+        .ik-result {
+            background: var(--bg);
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 14px;
+            color: var(--success);
+            margin-top: 8px;
+        }
+
+        .calc-preview {
+            background: var(--bg);
+            padding: 14px;
+            border-radius: 10px;
+            margin-top: 16px;
+            font-size: 13px;
+        }
+
+        .calc-row { display: flex; justify-content: space-between; margin-bottom: 6px; }
+        .calc-row.total {
+            border-top: 1px solid var(--border);
+            padding-top: 8px;
+            margin-top: 8px;
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-primary:active { background: var(--accent-dark); transform: scale(0.98); }
+        .btn-success { background: var(--success); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+
+        .patient-list { margin-top: 8px; }
+        .patient-item {
+            background: var(--bg);
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 10px;
+            position: relative;
+        }
+        .patient-item .name { font-weight: 600; margin-bottom: 4px; }
+        .patient-item .details { font-size: 13px; color: var(--text-dim); }
+        .patient-item .amounts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; font-size: 12px; }
+        .patient-item .amounts span { padding: 4px 8px; border-radius: 6px; }
+        .patient-item .amounts .amo { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+        .patient-item .amounts .amc { background: rgba(139, 92, 246, 0.2); color: #a78bfa; }
+        .patient-item .amounts .de { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+        .patient-item .amounts .ik { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+        .patient-item .delete-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(239, 68, 68, 0.2);
+            border: none;
+            color: var(--danger);
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+        .stat-box { background: var(--bg); padding: 14px; border-radius: 10px; text-align: center; }
+        .stat-box .value { font-size: 22px; font-weight: 700; }
+        .stat-box .label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; }
+        .stat-box.secu .value { color: #60a5fa; }
+        .stat-box.encaisse .value { color: #34d399; }
+
+        .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+        .empty-state { text-align: center; padding: 30px; color: var(--text-dim); }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <h1>🚑 SOS Médecin</h1>
+    <div class="date" id="currentDate"></div>
+
+    <div class="card">
+        <h2>Nouveau Patient</h2>
+        
+        <div class="form-group">
+            <label>Nom Prénom</label>
+            <input type="text" id="nomPrenom" placeholder="Nom Prénom" autocomplete="off">
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>N° Sécu</label>
+                <input type="text" id="numSecu" placeholder="1 85 04 13..." inputmode="numeric">
+            </div>
+            <div class="form-group">
+                <label>Code Orga</label>
+                <input type="text" id="codeOrga" placeholder="01 131 0421" maxlength="15">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Situation</label>
+            <div class="situation-grid">
+                <input type="radio" name="situation" id="sitNormale" value="normale" checked>
+                <label for="sitNormale">Normale</label>
+                <input type="radio" name="situation" id="sitALD" value="ald">
+                <label for="sitALD">ALD</label>
+                <input type="radio" name="situation" id="sitInvalidite" value="invalidite">
+                <label for="sitInvalidite">Invalidité</label>
+                <input type="radio" name="situation" id="sitAME" value="ame">
+                <label for="sitAME">AME</label>
+                <input type="radio" name="situation" id="sitC2S" value="c2s">
+                <label for="sitC2S">C2S</label>
+            </div>
+        </div>
+
+        <div class="form-group" id="tpChoiceGroup">
+            <label>Mode de règlement</label>
+            <div class="situation-grid" style="grid-template-columns: 1fr 1fr;">
+                <input type="radio" name="tpChoice" id="tpChoiceTout" value="tout" checked>
+                <label for="tpChoiceTout">Tout</label>
+                <input type="radio" name="tpChoice" id="tpChoiceTP" value="tp">
+                <label for="tpChoiceTP">TP</label>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Cotations</label>
+            <div class="cotation-grid">
+                <div class="cotation-item">
+                    <input type="checkbox" id="cotVG" checked>
+                    <label for="cotVG"><span>VG</span><small>30€</small></label>
+                </div>
+                <div class="cotation-item">
+                    <input type="checkbox" id="cotMD" checked>
+                    <label for="cotMD"><span>MD</span><small>10€</small></label>
+                </div>
+                <div class="cotation-item">
+                    <input type="checkbox" id="cotSNP">
+                    <label for="cotSNP"><span>SNP</span><small>15€</small></label>
+                </div>
+                <div class="cotation-item">
+                    <input type="checkbox" id="cotMVR">
+                    <label for="cotMVR"><span>MVR</span><small>10€</small></label>
+                </div>
+                <div class="cotation-item">
+                    <input type="checkbox" id="cotMEG">
+                    <label for="cotMEG"><span>MEG</span><small>5€ &lt;6a</small></label>
+                </div>
+                <div class="cotation-item">
+                    <input type="checkbox" id="cotMOP">
+                    <label for="cotMOP"><span>MOP</span><small>5€ ≥80a</small></label>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group" id="deGroup">
+                <label>DE (€)</label>
+                <input type="number" id="de" placeholder="0" inputmode="decimal" step="0.01" value="0">
+            </div>
+            <div class="form-group">
+                <label>IK (km)</label>
+                <input type="number" id="ikKm" placeholder="0" inputmode="decimal" step="0.1" value="0">
+            </div>
+        </div>
+        <div class="ik-result" id="ikResult">IK : 0,00 €</div>
+
+        <div class="form-group" id="paiementGroup">
+            <label>Paiement Patient</label>
+            <div class="paiement-grid">
+                <input type="radio" name="paiement" id="paieCB" value="cb" checked>
+                <label for="paieCB">CB</label>
+                <input type="radio" name="paiement" id="paieCheque" value="cheque">
+                <label for="paieCheque">Chèque</label>
+                <input type="radio" name="paiement" id="paieLiquide" value="liquide">
+                <label for="paieLiquide">Liquide</label>
+                <input type="radio" name="paiement" id="paieVirement" value="virement">
+                <label for="paieVirement">Virement</label>
+                <input type="radio" name="paiement" id="paieAucun" value="aucun">
+                <label for="paieAucun">Aucun</label>
+            </div>
+        </div>
+
+        <div class="calc-preview" id="calcPreview">
+            <div class="calc-row"><span>AMO (70%)</span><span id="prevAMO">0,00 €</span></div>
+            <div class="calc-row"><span>AMC (30%)</span><span id="prevAMC">0,00 €</span></div>
+            <div class="calc-row"><span>DE</span><span id="prevDE">0,00 €</span></div>
+            <div class="calc-row"><span>IK</span><span id="prevIK">0,00 €</span></div>
+            <div class="calc-row total"><span>Total</span><span id="prevTotal">0,00 €</span></div>
+            <div class="calc-row" style="color: var(--success);"><span>Patient paye</span><span id="prevPatient">0,00 €</span></div>
+            <div class="calc-row" style="color: #60a5fa;"><span>Tiers Payant Sécu</span><span id="prevSecu">0,00 €</span></div>
+        </div>
+
+        <button class="btn btn-primary" style="margin-top: 16px;" id="btnAjouter">Ajouter Patient</button>
+    </div>
+
+    <div class="card">
+        <h2>Patients (<span id="patientCount">0</span>)</h2>
+        <div id="patientList" class="patient-list">
+            <div class="empty-state">Aucun patient</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Récapitulatif</h2>
+        <div class="stats-grid">
+            <div class="stat-box secu">
+                <div class="value" id="totalSecu">0,00 €</div>
+                <div class="label">Tiers Payant Sécu</div>
+            </div>
+            <div class="stat-box encaisse">
+                <div class="value" id="totalEncaisse">0,00 €</div>
+                <div class="label">Encaissé</div>
+            </div>
+        </div>
+        <div class="actions">
+            <button class="btn btn-danger" id="btnReinit">Réinitialiser</button>
+            <button class="btn btn-success" id="btnPDF">Générer PDF</button>
+        </div>
+    </div>
+
+    <script>
+        const TARIFS = { VG: 30, MD: 10, SNP: 15, MVR: 10, MEG: 5, MOP: 5 };
+        const IK_TAUX = 0.61;
+
+        let patients = [];
+        try {
+            patients = JSON.parse(localStorage.getItem('sosPatients') || '[]');
+        } catch(e) {
+            patients = [];
+        }
+
+        const today = new Date();
+        document.getElementById('currentDate').textContent = today.toLocaleDateString('fr-FR', {
+            weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+        });
+
+        function formatMontant(n) {
+            return n.toFixed(2).replace('.', ',') + ' €';
+        }
+
+        function calculerIK(km) {
+            if (km <= 0) return 0;
+            return Math.round(km * IK_TAUX * 100) / 100;
+        }
+
+        function getCotations() {
+            const codes = [];
+            let total = 0;
+            if (document.getElementById('cotVG').checked) { codes.push('VG'); total += TARIFS.VG; }
+            if (document.getElementById('cotMD').checked) { codes.push('MD'); total += TARIFS.MD; }
+            if (document.getElementById('cotSNP').checked) { codes.push('SNP'); total += TARIFS.SNP; }
+            if (document.getElementById('cotMVR').checked) { codes.push('MVR'); total += TARIFS.MVR; }
+            if (document.getElementById('cotMEG').checked) { codes.push('MEG'); total += TARIFS.MEG; }
+            if (document.getElementById('cotMOP').checked) { codes.push('MOP'); total += TARIFS.MOP; }
+            return { codes, total };
+        }
+
+        function updateInterface() {
+            const situation = document.querySelector('input[name="situation"]:checked').value;
+            const deGroup = document.getElementById('deGroup');
+            const paiementGroup = document.getElementById('paiementGroup');
+            const tpChoiceGroup = document.getElementById('tpChoiceGroup');
+            
+            if (situation === 'normale') {
+                deGroup.classList.remove('hidden');
+                paiementGroup.classList.remove('hidden');
+                tpChoiceGroup.classList.remove('hidden');
+            } else {
+                deGroup.classList.add('hidden');
+                paiementGroup.classList.add('hidden');
+                tpChoiceGroup.classList.add('hidden');
+                document.getElementById('de').value = 0;
+                document.getElementById('paieAucun').checked = true;
+            }
+            calculerPreview();
+        }
+
+        function calculerPreview() {
+            const situation = document.querySelector('input[name="situation"]:checked').value;
+            const tpChoice = document.querySelector('input[name="tpChoice"]:checked').value;
+            const cotations = getCotations();
+            const de = situation === 'normale' ? (parseFloat(document.getElementById('de').value) || 0) : 0;
+            const ikKm = parseFloat(document.getElementById('ikKm').value) || 0;
+            const ik = calculerIK(ikKm);
+
+            const totalActes = cotations.total;
+            let amo, amc, patientPaye, tiersPayantSecu;
+
+            if (situation === 'normale') {
+                amo = Math.round(totalActes * 0.7 * 100) / 100;
+                amc = Math.round(totalActes * 0.3 * 100) / 100;
+                if (tpChoice === 'tout') {
+                    patientPaye = amo + amc + de + ik;
+                    tiersPayantSecu = 0;
+                } else {
+                    patientPaye = amc + de;
+                    tiersPayantSecu = amo + ik;
+                }
+            } else {
+                amo = totalActes;
+                amc = 0;
+                patientPaye = 0;
+                tiersPayantSecu = amo + ik;
+            }
+
+            document.getElementById('prevAMO').textContent = formatMontant(amo);
+            document.getElementById('prevAMC').textContent = formatMontant(amc);
+            document.getElementById('prevDE').textContent = formatMontant(de);
+            document.getElementById('prevIK').textContent = formatMontant(ik);
+            document.getElementById('prevTotal').textContent = formatMontant(amo + amc + de + ik);
+            document.getElementById('prevPatient').textContent = formatMontant(patientPaye);
+            document.getElementById('prevSecu').textContent = formatMontant(tiersPayantSecu);
+        }
+
+        function ajouterPatient() {
+            const nomPrenom = document.getElementById('nomPrenom').value.trim();
+            if (!nomPrenom) {
+                alert('Veuillez entrer le nom du patient');
+                return;
+            }
+
+            const situation = document.querySelector('input[name="situation"]:checked').value;
+            const tpChoice = document.querySelector('input[name="tpChoice"]:checked').value;
+            const cotations = getCotations();
+            const de = situation === 'normale' ? (parseFloat(document.getElementById('de').value) || 0) : 0;
+            const ikKm = parseFloat(document.getElementById('ikKm').value) || 0;
+            const ik = calculerIK(ikKm);
+            const paiement = document.querySelector('input[name="paiement"]:checked').value;
+
+            const totalActes = cotations.total;
+            let amo, amc, patientPaye, tiersPayantSecu;
+
+            if (situation === 'normale') {
+                amo = Math.round(totalActes * 0.7 * 100) / 100;
+                amc = Math.round(totalActes * 0.3 * 100) / 100;
+                if (tpChoice === 'tout') {
+                    patientPaye = amo + amc + de + ik;
+                    tiersPayantSecu = 0;
+                } else {
+                    patientPaye = amc + de;
+                    tiersPayantSecu = amo + ik;
+                }
+            } else {
+                amo = totalActes;
+                amc = 0;
+                patientPaye = 0;
+                tiersPayantSecu = amo + ik;
+            }
+
+            const patient = {
+                id: Date.now(),
+                nomPrenom,
+                numSecu: document.getElementById('numSecu').value.trim(),
+                codeOrga: document.getElementById('codeOrga').value.trim(),
+                situation,
+                tpChoice: situation === 'normale' ? tpChoice : 'tp',
+                cotations: cotations.codes,
+                totalActes,
+                amo,
+                amc,
+                de,
+                ikKm,
+                ik,
+                paiement: situation === 'normale' ? paiement : 'aucun',
+                patientPaye,
+                tiersPayantSecu
+            };
+
+            patients.push(patient);
+            sauvegarder();
+            afficherPatients();
+            resetForm();
+        }
+
+        function resetForm() {
+            document.getElementById('nomPrenom').value = '';
+            document.getElementById('numSecu').value = '';
+            document.getElementById('codeOrga').value = '';
+            document.getElementById('sitNormale').checked = true;
+            document.getElementById('tpChoiceTout').checked = true;
+            document.getElementById('cotVG').checked = true;
+            document.getElementById('cotMD').checked = true;
+            document.getElementById('cotSNP').checked = false;
+            document.getElementById('cotMVR').checked = false;
+            document.getElementById('cotMEG').checked = false;
+            document.getElementById('cotMOP').checked = false;
+            document.getElementById('de').value = 0;
+            document.getElementById('ikKm').value = 0;
+            document.getElementById('paieCB').checked = true;
+            document.getElementById('ikResult').textContent = 'IK : 0,00 €';
+            updateInterface();
+        }
+
+        function supprimerPatient(id) {
+            patients = patients.filter(p => p.id !== id);
+            sauvegarder();
+            afficherPatients();
+        }
+
+        function afficherPatients() {
+            const container = document.getElementById('patientList');
+            document.getElementById('patientCount').textContent = patients.length;
+
+            if (patients.length === 0) {
+                container.innerHTML = '<div class="empty-state">Aucun patient</div>';
+                updateTotals();
+                return;
+            }
+
+            container.innerHTML = patients.map((p, index) => 
+                '<div class="patient-item">' +
+                    '<button class="delete-btn" onclick="supprimerPatient(' + p.id + ')">×</button>' +
+                    '<div class="name">' + (index + 1) + '. ' + p.nomPrenom + '</div>' +
+                    '<div class="details">' +
+                        p.situation.toUpperCase() + (p.situation === 'normale' ? (p.tpChoice === 'tout' ? ' (Tout)' : ' (TP)') : '') + ' | ' + p.cotations.join('+') +
+                        (p.numSecu ? ' | ' + p.numSecu.substring(0, 7) + '...' : '') +
+                    '</div>' +
+                    '<div class="amounts">' +
+                        (p.tiersPayantSecu > 0 ? '<span class="amo">Sécu ' + formatMontant(p.tiersPayantSecu) + '</span>' : '') +
+                        (p.patientPaye > 0 ? '<span class="amc">Patient ' + formatMontant(p.patientPaye) + '</span>' : '') +
+                        (p.de > 0 ? '<span class="de">DE ' + formatMontant(p.de) + '</span>' : '') +
+                        (p.ik > 0 ? '<span class="ik">IK ' + formatMontant(p.ik) + '</span>' : '') +
+                    '</div>' +
+                '</div>'
+            ).join('');
+
+            updateTotals();
+        }
+
+        function updateTotals() {
+            let totalSecu = 0;
+            let totalEncaisse = { cb: 0, cheque: 0, liquide: 0, virement: 0 };
+
+            patients.forEach(function(p) {
+                totalSecu += p.tiersPayantSecu;
+                if (p.paiement !== 'aucun' && p.patientPaye > 0) {
+                    totalEncaisse[p.paiement] += p.patientPaye;
+                }
+            });
+
+            var encaisseTotal = totalEncaisse.cb + totalEncaisse.cheque + totalEncaisse.liquide + totalEncaisse.virement;
+            document.getElementById('totalSecu').textContent = formatMontant(totalSecu);
+            document.getElementById('totalEncaisse').textContent = formatMontant(encaisseTotal);
+        }
+
+        function sauvegarder() {
+            localStorage.setItem('sosPatients', JSON.stringify(patients));
+        }
+
+        function reinitialiser() {
+            if (confirm('Réinitialiser tous les patients ?')) {
+                patients = [];
+                localStorage.removeItem('sosPatients');
+                afficherPatients();
+                resetForm();
+            }
+        }
+
+        function genererPDF() {
+            if (patients.length === 0) {
+                alert('Aucun patient à exporter');
+                return;
+            }
+
+            if (typeof window.jspdf === 'undefined') {
+                alert('Erreur: Bibliothèque PDF non chargée. Vérifiez votre connexion internet et rechargez la page.');
+                return;
+            }
+
+            try {
+                var jsPDF = window.jspdf.jsPDF;
+                var doc = new jsPDF();
+                var dateStr = today.toLocaleDateString('fr-FR');
+
+                doc.setFontSize(18);
+                doc.text('FEUILLE DE ROUTE - SOS MEDECIN', 105, 20, { align: 'center' });
+                doc.setFontSize(12);
+                doc.text('Date : ' + dateStr, 105, 28, { align: 'center' });
+
+                var tableData = patients.map(function(p, i) {
+                    return [
+                        i + 1,
+                        p.nomPrenom,
+                        p.numSecu || '-',
+                        p.codeOrga || '-',
+                        p.situation === 'normale' ? (p.tpChoice === 'tout' ? 'TOUT' : 'TP') : p.situation.toUpperCase(),
+                        p.cotations.join('+'),
+                        formatMontant(p.amo),
+                        formatMontant(p.amc),
+                        formatMontant(p.de),
+                        formatMontant(p.ik),
+                        formatMontant(p.amo + p.amc + p.de + p.ik),
+                        p.patientPaye > 0 ? formatMontant(p.patientPaye) + ' ' + p.paiement.toUpperCase() : '-'
+                    ];
+                });
+
+                doc.autoTable({
+                    startY: 35,
+                    head: [['N', 'Nom', 'N Secu', 'Orga', 'Sit.', 'Cotation', 'AMO', 'AMC', 'DE', 'IK', 'Total', 'Paiement']],
+                    body: tableData,
+                    theme: 'grid',
+                    styles: { fontSize: 7, cellPadding: 2 },
+                    headStyles: { fillColor: [59, 130, 246], textColor: 255 }
+                });
+
+                var finalY = doc.lastAutoTable.finalY + 10;
+
+                var totalTPSecu = 0;
+                var encaisse = { cb: 0, cheque: 0, liquide: 0, virement: 0 };
+
+                patients.forEach(function(p) {
+                    totalTPSecu += p.tiersPayantSecu;
+                    if (p.paiement !== 'aucun' && p.patientPaye > 0) {
+                        encaisse[p.paiement] += p.patientPaye;
+                    }
+                });
+
+                var totalEncaisse = encaisse.cb + encaisse.cheque + encaisse.liquide + encaisse.virement;
+
+                doc.setFontSize(11);
+                doc.setFont(undefined, 'bold');
+                doc.text('RECAPITULATIF', 14, finalY);
+
+                doc.setFont(undefined, 'normal');
+                doc.setFontSize(10);
+
+                var y = finalY + 8;
+                doc.text('TIERS PAYANT SECU : ' + formatMontant(totalTPSecu), 14, y);
+                y += 8;
+                doc.text('ENCAISSE PATIENT :', 14, y);
+                y += 6;
+                doc.text('  CB : ' + formatMontant(encaisse.cb), 14, y);
+                y += 5;
+                doc.text('  Cheque : ' + formatMontant(encaisse.cheque), 14, y);
+                y += 5;
+                doc.text('  Liquide : ' + formatMontant(encaisse.liquide), 14, y);
+                y += 5;
+                doc.text('  Virement : ' + formatMontant(encaisse.virement), 14, y);
+                y += 5;
+                doc.setFont(undefined, 'bold');
+                doc.text('  TOTAL ENCAISSE : ' + formatMontant(totalEncaisse), 14, y);
+
+                y += 12;
+                doc.setFontSize(12);
+                doc.text('TOTAL JOURNEE : ' + formatMontant(totalTPSecu + totalEncaisse), 14, y);
+                doc.text('Patients : ' + patients.length, 120, y);
+
+                var filename = 'SOS_' + dateStr.replace(/\//g, '-') + '.pdf';
+                doc.save(filename);
+            } catch(e) {
+                alert('Erreur lors de la generation du PDF: ' + e.message);
+                console.error(e);
+            }
+        }
+
+        // Event listeners
+        document.querySelectorAll('input[name="situation"]').forEach(function(r) { r.addEventListener('change', updateInterface); });
+        document.querySelectorAll('input[name="tpChoice"]').forEach(function(r) { r.addEventListener('change', calculerPreview); });
+        document.querySelectorAll('.cotation-item input').forEach(function(cb) { cb.addEventListener('change', calculerPreview); });
+        document.getElementById('de').addEventListener('input', calculerPreview);
+        document.getElementById('ikKm').addEventListener('input', function() {
+            var km = parseFloat(this.value) || 0;
+            document.getElementById('ikResult').textContent = 'IK : ' + formatMontant(calculerIK(km)) + ' (' + km + ' km x ' + IK_TAUX + ' €)';
+            calculerPreview();
+        });
+
+        document.getElementById('btnAjouter').addEventListener('click', ajouterPatient);
+        document.getElementById('btnReinit').addEventListener('click', reinitialiser);
+        document.getElementById('btnPDF').addEventListener('click', genererPDF);
+
+        // Init
+        afficherPatients();
+        calculerPreview();
+    </script>
+</body>
+</html>
