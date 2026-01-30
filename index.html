@@ -274,7 +274,7 @@
 
         <div class="form-group">
             <label>N° Sécu</label>
-            <input type="text" id="numSecu" placeholder="2020513155268 45" inputmode="numeric" maxlength="17">
+            <input type="text" id="numSecu" placeholder="2 02 05 13 155 268 45" inputmode="numeric" maxlength="21">
         </div>
         <div class="form-group">
             <label>Code Orga</label>
@@ -818,15 +818,19 @@
         document.getElementById('btnReinit').addEventListener('click', reinitialiser);
         document.getElementById('btnPDF').addEventListener('click', genererPDF);
 
-        // Formatage automatique N° Sécu : XXXXXXXXXXXXX XX (13 + 2)
+        // Formatage automatique N° Sécu : X XX XX XX XXX XXX XX
         document.getElementById('numSecu').addEventListener('input', function() {
             var val = this.value.replace(/\s/g, '').replace(/\D/g, '');
             if (val.length > 15) val = val.substring(0, 15);
-            if (val.length > 13) {
-                this.value = val.substring(0, 13) + ' ' + val.substring(13);
-            } else {
-                this.value = val;
-            }
+            var formatted = '';
+            if (val.length > 0) formatted = val.substring(0, 1);
+            if (val.length > 1) formatted += ' ' + val.substring(1, 3);
+            if (val.length > 3) formatted += ' ' + val.substring(3, 5);
+            if (val.length > 5) formatted += ' ' + val.substring(5, 7);
+            if (val.length > 7) formatted += ' ' + val.substring(7, 10);
+            if (val.length > 10) formatted += ' ' + val.substring(10, 13);
+            if (val.length > 13) formatted += ' ' + val.substring(13, 15);
+            this.value = formatted;
         });
 
         // Formatage automatique Code Orga : XX XXX XXXX
