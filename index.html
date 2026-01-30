@@ -316,28 +316,37 @@
                 </div>
                 <div class="cotation-item">
                     <input type="checkbox" id="cotG">
-                    <label for="cotG"><span>G</span><small>30€ 2ème</small></label>
+                    <label for="cotG"><span>G</span><small>30€</small></label>
                 </div>
                 <div></div>
                 <div class="cotation-item">
-                    <input type="checkbox" id="cotSNP">
-                    <label for="cotSNP"><span>SNP</span><small>15€</small></label>
+                    <input type="checkbox" id="cotMD">
+                    <label for="cotMD"><span>MD</span><small>10€</small></label>
+                </div>
+                <div class="cotation-item">
+                    <input type="checkbox" id="cotVRD">
+                    <label for="cotVRD"><span>VRD</span><small>36,50€</small></label>
+                </div>
+                <div class="cotation-item">
+                    <input type="checkbox" id="cotVRN">
+                    <label for="cotVRN"><span>VRN</span><small>52,50€</small></label>
                 </div>
                 <div class="cotation-item">
                     <input type="checkbox" id="cotMVR">
                     <label for="cotMVR"><span>MVR</span><small>10€</small></label>
                 </div>
                 <div class="cotation-item">
-                    <input type="checkbox" id="cotMD">
-                    <label for="cotMD"><span>MD</span><small>10€</small></label>
+                    <input type="checkbox" id="cotSNP">
+                    <label for="cotSNP"><span>SNP</span><small>15€</small></label>
                 </div>
+                <div></div>
                 <div class="cotation-item">
                     <input type="checkbox" id="cotMEG">
-                    <label for="cotMEG"><span>MEG</span><small>5€ &lt;6a</small></label>
+                    <label for="cotMEG"><span>MEG</span><small>5€</small></label>
                 </div>
                 <div class="cotation-item">
                     <input type="checkbox" id="cotMOP">
-                    <label for="cotMOP"><span>MOP</span><small>5€ ≥80a</small></label>
+                    <label for="cotMOP"><span>MOP</span><small>5€</small></label>
                 </div>
             </div>
         </div>
@@ -412,7 +421,7 @@
     </div>
 
     <script>
-        const TARIFS = { VG: 30, G: 30, MD: 10, SNP: 15, MVR: 10, MEG: 5, MOP: 5 };
+        const TARIFS = { VG: 30, G: 30, MD: 10, VRD: 36.50, VRN: 52.50, MVR: 10, SNP: 15, MEG: 5, MOP: 5 };
         const IK_TAUX = 0.61;
 
         var patients = [];
@@ -443,8 +452,10 @@
             if (document.getElementById('cotVG').checked) { codes.push('VG'); total += TARIFS.VG; }
             if (document.getElementById('cotG').checked) { codes.push('G'); total += TARIFS.G; }
             if (document.getElementById('cotMD').checked) { codes.push('MD'); total += TARIFS.MD; }
-            if (document.getElementById('cotSNP').checked) { codes.push('SNP'); total += TARIFS.SNP; }
+            if (document.getElementById('cotVRD').checked) { codes.push('VRD'); total += TARIFS.VRD; }
+            if (document.getElementById('cotVRN').checked) { codes.push('VRN'); total += TARIFS.VRN; }
             if (document.getElementById('cotMVR').checked) { codes.push('MVR'); total += TARIFS.MVR; }
+            if (document.getElementById('cotSNP').checked) { codes.push('SNP'); total += TARIFS.SNP; }
             if (document.getElementById('cotMEG').checked) { codes.push('MEG'); total += TARIFS.MEG; }
             if (document.getElementById('cotMOP').checked) { codes.push('MOP'); total += TARIFS.MOP; }
             return { codes: codes, total: total };
@@ -592,8 +603,10 @@
             document.getElementById('cotVG').checked = true;
             document.getElementById('cotG').checked = false;
             document.getElementById('cotMD').checked = false;
-            document.getElementById('cotSNP').checked = false;
+            document.getElementById('cotVRD').checked = false;
+            document.getElementById('cotVRN').checked = false;
             document.getElementById('cotMVR').checked = false;
+            document.getElementById('cotSNP').checked = false;
             document.getElementById('cotMEG').checked = false;
             document.getElementById('cotMOP').checked = false;
             document.getElementById('de').value = 0;
@@ -632,8 +645,10 @@
             document.getElementById('cotVG').checked = p.cotations.indexOf('VG') !== -1;
             document.getElementById('cotG').checked = p.cotations.indexOf('G') !== -1;
             document.getElementById('cotMD').checked = p.cotations.indexOf('MD') !== -1;
-            document.getElementById('cotSNP').checked = p.cotations.indexOf('SNP') !== -1;
+            document.getElementById('cotVRD').checked = p.cotations.indexOf('VRD') !== -1;
+            document.getElementById('cotVRN').checked = p.cotations.indexOf('VRN') !== -1;
             document.getElementById('cotMVR').checked = p.cotations.indexOf('MVR') !== -1;
+            document.getElementById('cotSNP').checked = p.cotations.indexOf('SNP') !== -1;
             document.getElementById('cotMEG').checked = p.cotations.indexOf('MEG') !== -1;
             document.getElementById('cotMOP').checked = p.cotations.indexOf('MOP') !== -1;
             
