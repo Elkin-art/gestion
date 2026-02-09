@@ -857,6 +857,22 @@
                 var totalCA = totalTPSecu + totalEncaisse;
                 var heures = calculerHeures();
                 var caHeure = heures > 0 ? totalCA / heures : 0;
+                
+                // Créneaux travaillés
+                var isWeekend = (today.getDay() === 0 || today.getDay() === 6);
+                var creneauxStr = '';
+                if (isWeekend) {
+                    var cren = [];
+                    if (document.getElementById('crenWE1').checked) cren.push('8h-14h');
+                    if (document.getElementById('crenWE2').checked) cren.push('14h-20h');
+                    creneauxStr = cren.join(', ') || 'Aucun';
+                } else {
+                    var cren = [];
+                    if (document.getElementById('cren1').checked) cren.push('8h-12h');
+                    if (document.getElementById('cren2').checked) cren.push('12h-16h');
+                    if (document.getElementById('cren3').checked) cren.push('16h-20h');
+                    creneauxStr = cren.join(', ') || 'Aucun';
+                }
 
                 doc.setFontSize(11);
                 doc.setFont(undefined, 'bold');
@@ -866,6 +882,8 @@
                 doc.setFontSize(10);
 
                 var y = finalY + 8;
+                doc.text('Creneaux : ' + creneauxStr + ' (' + heures + 'h)', 14, y);
+                y += 8;
                 doc.text('TIERS PAYANT SECU : ' + formatMontant(totalTPSecu), 14, y);
                 y += 8;
                 doc.text('ENCAISSE PATIENT :', 14, y);
@@ -884,7 +902,6 @@
                 y += 12;
                 doc.setFontSize(12);
                 doc.text('TOTAL CA : ' + formatMontant(totalCA), 14, y);
-                doc.text('Heures : ' + heures + 'h', 80, y);
                 doc.text('CA/h : ' + formatMontant(caHeure), 120, y);
                 y += 8;
                 doc.text('Patients : ' + patients.length, 14, y);
