@@ -258,6 +258,7 @@
         .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
         .empty-state { text-align: center; padding: 30px; color: var(--text-dim); }
         .hidden { display: none !important; }
+        .heures-total { margin-top: 10px; font-size: 14px; color: var(--text-dim); }
     </style>
 </head>
 <body>
@@ -404,6 +405,26 @@
 
     <div class="card">
         <h2>Récapitulatif</h2>
+        
+        <div class="form-group">
+            <label>Créneaux travaillés (<span id="jourType">Semaine</span>)</label>
+            <div id="creneauxSemaine" class="situation-grid" style="grid-template-columns: 1fr 1fr 1fr;">
+                <input type="checkbox" id="cren1" checked>
+                <label for="cren1">8h-12h</label>
+                <input type="checkbox" id="cren2">
+                <label for="cren2">12h-16h</label>
+                <input type="checkbox" id="cren3">
+                <label for="cren3">16h-20h</label>
+            </div>
+            <div id="creneauxWeekend" class="situation-grid hidden" style="grid-template-columns: 1fr 1fr;">
+                <input type="checkbox" id="crenWE1" checked>
+                <label for="crenWE1">8h-14h</label>
+                <input type="checkbox" id="crenWE2">
+                <label for="crenWE2">14h-20h</label>
+            </div>
+            <div class="heures-total">Total : <strong id="totalHeures">4</strong> heures</div>
+        </div>
+
         <div class="stats-grid">
             <div class="stat-box secu">
                 <div class="value" id="totalSecu">0,00 €</div>
@@ -412,6 +433,16 @@
             <div class="stat-box encaisse">
                 <div class="value" id="totalEncaisse">0,00 €</div>
                 <div class="label">Encaissé</div>
+            </div>
+        </div>
+        <div class="stats-grid" style="margin-top: 12px;">
+            <div class="stat-box" style="background: var(--bg);">
+                <div class="value" style="color: var(--warning);" id="totalCA">0,00 €</div>
+                <div class="label">Total CA</div>
+            </div>
+            <div class="stat-box" style="background: var(--bg);">
+                <div class="value" style="color: #f472b6;" id="caHeure">0,00 €/h</div>
+                <div class="label">CA / Heure</div>
             </div>
         </div>
         <div class="actions">
@@ -708,6 +739,44 @@
             var encaisseTotal = totalEncaisse.cb + totalEncaisse.cheque + totalEncaisse.liquide + totalEncaisse.virement;
             document.getElementById('totalSecu').textContent = formatMontant(totalSecu);
             document.getElementById('totalEncaisse').textContent = formatMontant(encaisseTotal);
+            
+            var totalCA = totalSecu + encaisseTotal;
+            var heures = calculerHeures();
+            var caHeure = heures > 0 ? totalCA / heures : 0;
+            
+            document.getElementById('totalCA').textContent = formatMontant(totalCA);
+            document.getElementById('caHeure').textContent = formatMontant(caHeure) + '/h';
+            document.getElementById('totalHeures').textContent = heures;
+        }
+
+        function calculerHeures() {
+            var isWeekend = (today.getDay() === 0 || today.getDay() === 6);
+            var heures = 0;
+            
+            if (isWeekend) {
+                if (document.getElementById('crenWE1').checked) heures += 6;
+                if (document.getElementById('crenWE2').checked) heures += 6;
+            } else {
+                if (document.getElementById('cren1').checked) heures += 4;
+                if (document.getElementById('cren2').checked) heures += 4;
+                if (document.getElementById('cren3').checked) heures += 4;
+            }
+            return heures;
+        }
+
+        function initCreneaux() {
+            var isWeekend = (today.getDay() === 0 || today.getDay() === 6);
+            
+            if (isWeekend) {
+                document.getElementById('jourType').textContent = 'Week-end';
+                document.getElementById('creneauxSemaine').classList.add('hidden');
+                document.getElementById('creneauxWeekend').classList.remove('hidden');
+            } else {
+                document.getElementById('jourType').textContent = 'Semaine';
+                document.getElementById('creneauxSemaine').classList.remove('hidden');
+                document.getElementById('creneauxWeekend').classList.add('hidden');
+            }
+            updateTotals();
         }
 
         function sauvegarder() {
@@ -785,6 +854,9 @@
                 });
 
                 var totalEncaisse = encaisse.cb + encaisse.cheque + encaisse.liquide + encaisse.virement;
+                var totalCA = totalTPSecu + totalEncaisse;
+                var heures = calculerHeures();
+                var caHeure = heures > 0 ? totalCA / heures : 0;
 
                 doc.setFontSize(11);
                 doc.setFont(undefined, 'bold');
@@ -811,8 +883,11 @@
 
                 y += 12;
                 doc.setFontSize(12);
-                doc.text('TOTAL JOURNEE : ' + formatMontant(totalTPSecu + totalEncaisse), 14, y);
-                doc.text('Patients : ' + patients.length, 120, y);
+                doc.text('TOTAL CA : ' + formatMontant(totalCA), 14, y);
+                doc.text('Heures : ' + heures + 'h', 80, y);
+                doc.text('CA/h : ' + formatMontant(caHeure), 120, y);
+                y += 8;
+                doc.text('Patients : ' + patients.length, 14, y);
 
                 var filename = 'SOS_' + dateStr.replace(/\//g, '-') + '.pdf';
                 doc.save(filename);
@@ -862,6 +937,14 @@
         // Init
         afficherPatients();
         calculerPreview();
+        initCreneaux();
+
+        // Event listeners créneaux
+        document.getElementById('cren1').addEventListener('change', updateTotals);
+        document.getElementById('cren2').addEventListener('change', updateTotals);
+        document.getElementById('cren3').addEventListener('change', updateTotals);
+        document.getElementById('crenWE1').addEventListener('change', updateTotals);
+        document.getElementById('crenWE2').addEventListener('change', updateTotals);
     </script>
 </body>
 </html>
