@@ -817,10 +817,20 @@
                     var cotationStr = p.cotations.join('+');
                     if (p.de > 0) cotationStr += '+DE' + p.de + '€';
                     if (p.ikKm > 0) cotationStr += '+IK' + p.ikKm + 'km';
+                    // Formater N° Sécu : collé sauf clé (XXXXXXXXXXXXX XX)
+                    var numSecuPDF = '-';
+                    if (p.numSecu) {
+                        var digits = p.numSecu.replace(/\s/g, '');
+                        if (digits.length >= 15) {
+                            numSecuPDF = digits.substring(0, 13) + ' ' + digits.substring(13);
+                        } else {
+                            numSecuPDF = digits;
+                        }
+                    }
                     return [
                         i + 1,
                         p.nomPrenom,
-                        p.numSecu || '-',
+                        numSecuPDF,
                         p.codeOrga || '-',
                         p.situation === 'normale' ? (p.tpChoice === 'tout' ? 'TOUT' : 'TP') : p.situation.toUpperCase(),
                         cotationStr,
