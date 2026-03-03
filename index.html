@@ -457,14 +457,20 @@
 
         var patients = [];
         var editingId = null;
+        var dateGarde = null;
         try {
             patients = JSON.parse(localStorage.getItem('sosPatients') || '[]');
+            var savedDate = localStorage.getItem('sosDateGarde');
+            if (savedDate) {
+                dateGarde = new Date(savedDate);
+            }
         } catch(e) {
             patients = [];
         }
 
         const today = new Date();
-        document.getElementById('currentDate').textContent = today.toLocaleDateString('fr-FR', {
+        var displayDate = dateGarde || today;
+        document.getElementById('currentDate').textContent = displayDate.toLocaleDateString('fr-FR', {
             weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
         });
 
@@ -617,6 +623,14 @@
                 editingId = null;
                 document.getElementById('btnAjouter').textContent = 'Ajouter Patient';
             } else {
+                // Premier patient → enregistrer la date de garde
+                if (patients.length === 0 && !dateGarde) {
+                    dateGarde = new Date();
+                    localStorage.setItem('sosDateGarde', dateGarde.toISOString());
+                    document.getElementById('currentDate').textContent = dateGarde.toLocaleDateString('fr-FR', {
+                        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+                    });
+                }
                 patients.push(patient);
             }
 
@@ -786,7 +800,12 @@
         function reinitialiser() {
             if (confirm('Réinitialiser tous les patients ?')) {
                 patients = [];
+                dateGarde = null;
                 localStorage.removeItem('sosPatients');
+                localStorage.removeItem('sosDateGarde');
+                document.getElementById('currentDate').textContent = today.toLocaleDateString('fr-FR', {
+                    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+                });
                 afficherPatients();
                 resetForm();
             }
@@ -806,7 +825,8 @@
             try {
                 var jsPDF = window.jspdf.jsPDF;
                 var doc = new jsPDF();
-                var dateStr = today.toLocaleDateString('fr-FR');
+                var pdfDate = dateGarde || today;
+                var dateStr = pdfDate.toLocaleDateString('fr-FR');
 
                 doc.setFontSize(18);
                 doc.text('FEUILLE DE ROUTE - SOS MEDECIN', 105, 20, { align: 'center' });
