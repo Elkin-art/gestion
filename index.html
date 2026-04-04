@@ -458,9 +458,10 @@
                 <div class="label">CA / Heure</div>
             </div>
         </div>
-        <div class="actions">
-            <button class="btn btn-danger" id="btnReinit">Réinitialiser</button>
-            <button class="btn btn-success" id="btnPDF">Générer PDF</button>
+        <div class="actions" style="grid-template-columns: 1fr 1fr 1fr;">
+            <button class="btn btn-danger" id="btnReinit">Réinit</button>
+            <button class="btn btn-success" id="btnPDF">PDF</button>
+            <button class="btn btn-primary" id="btnPartager">Partager</button>
         </div>
     </div>
 
@@ -966,6 +967,151 @@
             }
         }
 
+        function partagerPDF() {
+            if (patients.length === 0) {
+                alert('Aucun patient à exporter');
+                return;
+            }
+
+            if (typeof window.jspdf === 'undefined') {
+                alert('Erreur: Bibliothèque PDF non chargée. Vérifiez votre connexion internet et rechargez la page.');
+                return;
+            }
+
+            if (!navigator.share) {
+                alert('Le partage n\'est pas disponible sur cet appareil. Utilisez le bouton PDF.');
+                return;
+            }
+
+            try {
+                var jsPDF = window.jspdf.jsPDF;
+                var doc = new jsPDF();
+                var pdfDate = dateGarde || today;
+                var dateStr = pdfDate.toLocaleDateString('fr-FR');
+
+                doc.setFontSize(18);
+                doc.text('FEUILLE DE ROUTE - SOS MEDECIN', 105, 20, { align: 'center' });
+                doc.setFontSize(12);
+                doc.text('Date : ' + dateStr, 105, 28, { align: 'center' });
+
+                var tableData = patients.map(function(p, i) {
+                    var cotationStr = p.cotations.join('+');
+                    if (p.de > 0) cotationStr += '+DE' + p.de + '€';
+                    if (p.ikKm > 0) cotationStr += '+IK' + p.ikKm + 'km';
+                    var numSecuPDF = '-';
+                    if (p.numSecu) {
+                        var digits = p.numSecu.replace(/\s/g, '');
+                        if (digits.length >= 15) {
+                            numSecuPDF = digits.substring(0, 13) + ' ' + digits.substring(13);
+                        } else {
+                            numSecuPDF = digits;
+                        }
+                    }
+                    return [
+                        i + 1,
+                        p.nomPrenom,
+                        numSecuPDF,
+                        p.codeOrga || '-',
+                        p.situation === 'normale' ? (p.tpChoice === 'tout' ? 'TOUT' : 'TP') : p.situation.toUpperCase(),
+                        cotationStr,
+                        formatMontant(p.amo),
+                        formatMontant(p.amc),
+                        formatMontant(p.amo + p.amc + p.de + p.ik),
+                        p.patientPaye > 0 ? formatMontant(p.patientPaye) + ' ' + p.paiement.toUpperCase() : '-',
+                        p.notes || ''
+                    ];
+                });
+
+                doc.autoTable({
+                    startY: 35,
+                    head: [['N', 'Nom', 'N Secu', 'Orga', 'Sit.', 'Cotation', 'AMO', 'AMC', 'Total', 'Paiement', 'Notes']],
+                    body: tableData,
+                    theme: 'grid',
+                    styles: { fontSize: 6, cellPadding: 1 },
+                    headStyles: { fillColor: [59, 130, 246], textColor: 255 }
+                });
+
+                var finalY = doc.lastAutoTable.finalY + 10;
+
+                var totalTPSecu = 0;
+                var encaisse = { cb: 0, cheque: 0, liquide: 0, virement: 0 };
+
+                patients.forEach(function(p) {
+                    totalTPSecu += p.tiersPayantSecu;
+                    if (p.paiement !== 'aucun' && p.patientPaye > 0) {
+                        encaisse[p.paiement] += p.patientPaye;
+                    }
+                });
+
+                var totalEncaisse = encaisse.cb + encaisse.cheque + encaisse.liquide + encaisse.virement;
+                var totalCA = totalTPSecu + totalEncaisse;
+                var heures = calculerHeures();
+                var caHeure = heures > 0 ? totalCA / heures : 0;
+
+                var isWeekend = (today.getDay() === 0 || today.getDay() === 6);
+                var creneauxStr = '';
+                if (isWeekend) {
+                    var cren = [];
+                    if (document.getElementById('crenWE1').checked) cren.push('8h-14h');
+                    if (document.getElementById('crenWE2').checked) cren.push('14h-20h');
+                    creneauxStr = cren.join(', ') || 'Aucun';
+                } else {
+                    var cren = [];
+                    if (document.getElementById('cren1').checked) cren.push('8h-12h');
+                    if (document.getElementById('cren2').checked) cren.push('12h-16h');
+                    if (document.getElementById('cren3').checked) cren.push('16h-20h');
+                    creneauxStr = cren.join(', ') || 'Aucun';
+                }
+
+                doc.setFontSize(11);
+                doc.setFont(undefined, 'bold');
+                doc.text('RECAPITULATIF', 14, finalY);
+
+                doc.setFont(undefined, 'normal');
+                doc.setFontSize(10);
+
+                var y = finalY + 8;
+                doc.text('Creneaux : ' + creneauxStr + ' (' + heures + 'h)', 14, y);
+                y += 8;
+                doc.text('TIERS PAYANT SECU : ' + formatMontant(totalTPSecu), 14, y);
+                y += 8;
+                doc.text('ENCAISSE PATIENT :', 14, y);
+                y += 6;
+                doc.text('  CB : ' + formatMontant(encaisse.cb), 14, y);
+                y += 5;
+                doc.text('  Cheque : ' + formatMontant(encaisse.cheque), 14, y);
+                y += 5;
+                doc.text('  Liquide : ' + formatMontant(encaisse.liquide), 14, y);
+                y += 5;
+                doc.text('  Virement : ' + formatMontant(encaisse.virement), 14, y);
+                y += 5;
+                doc.setFont(undefined, 'bold');
+                doc.text('  TOTAL ENCAISSE : ' + formatMontant(totalEncaisse), 14, y);
+
+                y += 12;
+                doc.setFontSize(12);
+                doc.text('TOTAL CA : ' + formatMontant(totalCA), 14, y);
+                doc.text('CA/h : ' + formatMontant(caHeure), 120, y);
+                y += 8;
+                doc.text('Patients : ' + patients.length, 14, y);
+
+                var filename = 'SOS_' + dateStr.replace(/\//g, '-') + '.pdf';
+                var pdfBlob = doc.output('blob');
+                var file = new File([pdfBlob], filename, { type: 'application/pdf' });
+
+                navigator.share({
+                    files: [file],
+                    title: 'Feuille de route SOS',
+                }).catch(function(err) {
+                    console.error('Erreur partage:', err);
+                    doc.save(filename);
+                });
+            } catch(e) {
+                alert('Erreur: ' + e.message);
+                console.error(e);
+            }
+        }
+
         // Event listeners
         document.querySelectorAll('input[name="situation"]').forEach(function(r) { r.addEventListener('change', updateInterface); });
         document.querySelectorAll('input[name="tpChoice"]').forEach(function(r) { r.addEventListener('change', calculerPreview); });
@@ -973,9 +1119,28 @@
         document.getElementById('de').addEventListener('input', calculerPreview);
         document.getElementById('ikKm').addEventListener('input', calculerPreview);
 
+        // Exclusivité VG vs IMP/GAV/HDT
+        document.getElementById('cotVG').addEventListener('change', function() {
+            if (this.checked) {
+                document.getElementById('cotIMP').checked = false;
+                document.getElementById('cotGAV').checked = false;
+                document.getElementById('cotHDT').checked = false;
+                calculerPreview();
+            }
+        });
+        ['cotIMP', 'cotGAV', 'cotHDT'].forEach(function(id) {
+            document.getElementById(id).addEventListener('change', function() {
+                if (this.checked) {
+                    document.getElementById('cotVG').checked = false;
+                    calculerPreview();
+                }
+            });
+        });
+
         document.getElementById('btnAjouter').addEventListener('click', ajouterPatient);
         document.getElementById('btnReinit').addEventListener('click', reinitialiser);
         document.getElementById('btnPDF').addEventListener('click', genererPDF);
+        document.getElementById('btnPartager').addEventListener('click', partagerPDF);
 
         // Formatage automatique N° Sécu : X XX XX XX XXX XXX XX
         document.getElementById('numSecu').addEventListener('input', function() {
