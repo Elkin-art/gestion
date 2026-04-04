@@ -349,6 +349,19 @@
                     <input type="checkbox" id="cotMOP">
                     <label for="cotMOP"><span>MOP</span><small>5€</small></label>
                 </div>
+                <div></div>
+                <div class="cotation-item">
+                    <input type="checkbox" id="cotIMP">
+                    <label for="cotIMP"><span>IMP</span><small>60€</small></label>
+                </div>
+                <div class="cotation-item">
+                    <input type="checkbox" id="cotGAV">
+                    <label for="cotGAV"><span>GAV</span><small>60€</small></label>
+                </div>
+                <div class="cotation-item">
+                    <input type="checkbox" id="cotHDT">
+                    <label for="cotHDT"><span>HDT</span><small>80€</small></label>
+                </div>
             </div>
         </div>
 
@@ -452,7 +465,7 @@
     </div>
 
     <script>
-        const TARIFS = { VG: 30, G: 30, MD: 10, VRD: 36.50, VRN: 52.50, MVR: 10, SNP: 15, MEG: 5, MOP: 5 };
+        const TARIFS = { VG: 30, G: 30, MD: 10, VRD: 36.50, VRN: 52.50, MVR: 10, SNP: 15, MEG: 5, MOP: 5, IMP: 60, GAV: 60, HDT: 80 };
         const IK_TAUX = 0.61;
 
         var patients = [];
@@ -495,6 +508,9 @@
             if (document.getElementById('cotSNP').checked) { codes.push('SNP'); total += TARIFS.SNP; }
             if (document.getElementById('cotMEG').checked) { codes.push('MEG'); total += TARIFS.MEG; }
             if (document.getElementById('cotMOP').checked) { codes.push('MOP'); total += TARIFS.MOP; }
+            if (document.getElementById('cotIMP').checked) { codes.push('IMP'); total += TARIFS.IMP; }
+            if (document.getElementById('cotGAV').checked) { codes.push('GAV'); total += TARIFS.GAV; }
+            if (document.getElementById('cotHDT').checked) { codes.push('HDT'); total += TARIFS.HDT; }
             return { codes: codes, total: total };
         }
 
@@ -654,6 +670,9 @@
             document.getElementById('cotSNP').checked = false;
             document.getElementById('cotMEG').checked = false;
             document.getElementById('cotMOP').checked = false;
+            document.getElementById('cotIMP').checked = false;
+            document.getElementById('cotGAV').checked = false;
+            document.getElementById('cotHDT').checked = false;
             document.getElementById('de').value = 0;
             document.getElementById('ikKm').value = 0;
             document.getElementById('notes').value = '';
@@ -696,6 +715,9 @@
             document.getElementById('cotSNP').checked = p.cotations.indexOf('SNP') !== -1;
             document.getElementById('cotMEG').checked = p.cotations.indexOf('MEG') !== -1;
             document.getElementById('cotMOP').checked = p.cotations.indexOf('MOP') !== -1;
+            document.getElementById('cotIMP').checked = p.cotations.indexOf('IMP') !== -1;
+            document.getElementById('cotGAV').checked = p.cotations.indexOf('GAV') !== -1;
+            document.getElementById('cotHDT').checked = p.cotations.indexOf('HDT') !== -1;
             
             document.getElementById('de').value = p.de || 0;
             document.getElementById('ikKm').value = p.ikKm || 0;
