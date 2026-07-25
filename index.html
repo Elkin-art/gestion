@@ -3,267 +3,85 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>SOS Médecin - Cotations</title>
+    <title>Gestion</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         :root {
-            --bg: #0f172a;
-            --bg-card: #1e293b;
-            --bg-input: #334155;
-            --accent: #3b82f6;
-            --accent-dark: #2563eb;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-            --text: #f8fafc;
-            --text-dim: #94a3b8;
-            --border: #475569;
+            --bg: #0f172a; --bg-card: #1e293b; --bg-input: #334155;
+            --accent: #3b82f6; --accent-dark: #2563eb; --success: #10b981;
+            --warning: #f59e0b; --danger: #ef4444; --text: #f8fafc;
+            --text-dim: #94a3b8; --border: #475569;
         }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            min-height: 100vh;
-            padding: 16px;
-            padding-bottom: 100px;
-        }
-
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 16px; padding-bottom: 100px; }
         h1 { font-size: 20px; text-align: center; margin-bottom: 8px; }
         .date { text-align: center; color: var(--text-dim); font-size: 14px; margin-bottom: 20px; }
-
-        .card {
-            background: var(--bg-card);
-            border-radius: 16px;
-            padding: 20px;
-            margin-bottom: 16px;
-        }
-
-        .card h2 {
-            font-size: 16px;
-            margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .card h2::before {
-            content: '';
-            width: 4px;
-            height: 18px;
-            background: var(--accent);
-            border-radius: 2px;
-        }
-
+        .card { background: var(--bg-card); border-radius: 16px; padding: 20px; margin-bottom: 16px; }
+        .card h2 { font-size: 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+        .card h2::before { content: ''; width: 4px; height: 18px; background: var(--accent); border-radius: 2px; }
         .form-group { margin-bottom: 16px; }
-        .form-group label {
-            display: block;
-            font-size: 12px;
-            color: var(--text-dim);
-            margin-bottom: 6px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        input, select {
-            width: 100%;
-            padding: 14px 16px;
-            background: var(--bg-input);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            color: var(--text);
-            font-size: 16px;
-            -webkit-appearance: none;
-        }
-
-        input:focus, select:focus {
-            outline: none;
-            border-color: var(--accent);
-        }
-
+        .form-group label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+        input, select { width: 100%; padding: 14px 16px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-size: 16px; -webkit-appearance: none; }
+        input:focus, select:focus { outline: none; border-color: var(--accent); }
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-
-        .situation-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
-        }
-
-        .situation-grid label {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 12px 8px;
-            background: var(--bg-input);
-            border: 2px solid transparent;
-            border-radius: 10px;
-            font-size: 13px;
-            cursor: pointer;
-            transition: all 0.2s;
-            text-transform: none;
-            letter-spacing: 0;
-        }
-
+        .situation-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .situation-grid label { display: flex; align-items: center; justify-content: center; padding: 12px 8px; background: var(--bg-input); border: 2px solid transparent; border-radius: 10px; font-size: 13px; cursor: pointer; transition: all 0.2s; text-transform: none; letter-spacing: 0; }
         .situation-grid input { display: none; }
-        .situation-grid input:checked + label {
-            border-color: var(--accent);
-            background: rgba(59, 130, 246, 0.2);
-        }
-
+        .situation-grid input:checked + label { border-color: var(--accent); background: rgba(59, 130, 246, 0.2); }
         .cotation-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
         .cotation-item { position: relative; }
         .cotation-item input { display: none; }
-        .cotation-item label {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 12px 8px;
-            background: var(--bg-input);
-            border: 2px solid transparent;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
+        .cotation-item label { display: flex; flex-direction: column; align-items: center; padding: 12px 8px; background: var(--bg-input); border: 2px solid transparent; border-radius: 10px; cursor: pointer; transition: all 0.2s; }
         .cotation-item label span { font-size: 14px; font-weight: 600; }
         .cotation-item label small { font-size: 11px; color: var(--text-dim); }
-        .cotation-item input:checked + label {
-            border-color: var(--success);
-            background: rgba(16, 185, 129, 0.2);
-        }
-
+        .cotation-item input:checked + label { border-color: var(--success); background: rgba(16, 185, 129, 0.2); }
+        .cotation-item.disabled { opacity: 0.4; pointer-events: none; }
         .paiement-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-        .paiement-grid label {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 12px 8px;
-            background: var(--bg-input);
-            border: 2px solid transparent;
-            border-radius: 10px;
-            font-size: 13px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
+        .paiement-grid label { display: flex; align-items: center; justify-content: center; padding: 12px 8px; background: var(--bg-input); border: 2px solid transparent; border-radius: 10px; font-size: 13px; cursor: pointer; transition: all 0.2s; }
         .paiement-grid input { display: none; }
-        .paiement-grid input:checked + label {
-            border-color: var(--warning);
-            background: rgba(245, 158, 11, 0.2);
-        }
-
-        .ik-result {
-            background: var(--bg);
-            padding: 10px 14px;
-            border-radius: 8px;
-            font-size: 14px;
-            color: var(--success);
-            margin-top: 8px;
-        }
-
-        .calc-preview {
-            background: var(--bg);
-            padding: 14px;
-            border-radius: 10px;
-            margin-top: 16px;
-            font-size: 13px;
-        }
-
+        .paiement-grid input:checked + label { border-color: var(--warning); background: rgba(245, 158, 11, 0.2); }
+        .calc-preview { background: var(--bg); padding: 14px; border-radius: 10px; margin-top: 16px; font-size: 13px; }
         .calc-row { display: flex; justify-content: space-between; margin-bottom: 6px; }
-        .calc-row.total {
-            border-top: 1px solid var(--border);
-            padding-top: 8px;
-            margin-top: 8px;
-            font-weight: 600;
-            font-size: 15px;
-        }
-
-        .btn {
-            width: 100%;
-            padding: 16px;
-            border: none;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
+        .calc-row.total { border-top: 1px solid var(--border); padding-top: 8px; margin-top: 8px; font-weight: 600; font-size: 15px; }
+        .btn { width: 100%; padding: 16px; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
         .btn-primary { background: var(--accent); color: white; }
         .btn-primary:active { background: var(--accent-dark); transform: scale(0.98); }
         .btn-success { background: var(--success); color: white; }
         .btn-danger { background: var(--danger); color: white; }
-
         .patient-list { margin-top: 8px; }
-        .patient-item {
-            background: var(--bg);
-            border-radius: 10px;
-            padding: 14px;
-            margin-bottom: 10px;
-            position: relative;
-        }
+        .patient-item { background: var(--bg); border-radius: 10px; padding: 14px; margin-bottom: 10px; position: relative; }
         .patient-item .name { font-weight: 600; margin-bottom: 4px; }
         .patient-item .details { font-size: 13px; color: var(--text-dim); }
+        .patient-item .notes { font-size: 12px; color: var(--warning); font-style: italic; margin-top: 4px; }
         .patient-item .amounts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; font-size: 12px; }
         .patient-item .amounts span { padding: 4px 8px; border-radius: 6px; }
         .patient-item .amounts .amo { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
         .patient-item .amounts .amc { background: rgba(139, 92, 246, 0.2); color: #a78bfa; }
         .patient-item .amounts .de { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
         .patient-item .amounts .ik { background: rgba(16, 185, 129, 0.2); color: #34d399; }
-        .patient-item .delete-btn {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(239, 68, 68, 0.2);
-            border: none;
-            color: var(--danger);
-            width: 28px;
-            height: 28px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        .patient-item .edit-btn {
-            position: absolute;
-            top: 10px;
-            right: 45px;
-            background: rgba(59, 130, 246, 0.2);
-            border: none;
-            color: #60a5fa;
-            width: 28px;
-            height: 28px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-        .patient-item .notes {
-            font-size: 12px;
-            color: var(--warning);
-            font-style: italic;
-            margin-top: 4px;
-        }
-
+        .patient-item .delete-btn { position: absolute; top: 10px; right: 10px; background: rgba(239, 68, 68, 0.2); border: none; color: var(--danger); width: 28px; height: 28px; border-radius: 8px; cursor: pointer; font-size: 16px; }
+        .patient-item .edit-btn { position: absolute; top: 10px; right: 45px; background: rgba(59, 130, 246, 0.2); border: none; color: #60a5fa; width: 28px; height: 28px; border-radius: 8px; cursor: pointer; font-size: 14px; }
         .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
         .stat-box { background: var(--bg); padding: 14px; border-radius: 10px; text-align: center; }
         .stat-box .value { font-size: 22px; font-weight: 700; }
         .stat-box .label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; }
         .stat-box.secu .value { color: #60a5fa; }
         .stat-box.encaisse .value { color: #34d399; }
-
-        .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+        .actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 16px; }
         .empty-state { text-align: center; padding: 30px; color: var(--text-dim); }
         .hidden { display: none !important; }
         .heures-total { margin-top: 10px; font-size: 14px; color: var(--text-dim); }
+        .age-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .age-item input { display: none; }
+        .age-item label { display: flex; align-items: center; justify-content: center; padding: 12px 8px; background: var(--bg-input); border: 2px solid transparent; border-radius: 10px; font-size: 13px; cursor: pointer; transition: all 0.2s; }
+        .age-item input:checked + label { border-color: #f472b6; background: rgba(244, 114, 182, 0.2); }
     </style>
 </head>
 <body>
-    <h1>🚑 SOS Médecin</h1>
-    <div class="date" id="currentDate"></div>
+    <h1>🚑 Gestion</h1>
+    <div class="date" id="currentDate" style="cursor: pointer; text-decoration: underline;"></div>
+    <input type="date" id="dateInput" style="position: absolute; left: -9999px;">
 
     <div class="card">
         <h2>Nouveau Patient</h2>
@@ -283,6 +101,18 @@
         </div>
 
         <div class="form-group">
+            <label>Moment</label>
+            <div class="situation-grid">
+                <input type="radio" name="moment" id="momentJour" value="jour" checked>
+                <label for="momentJour">Jour</label>
+                <input type="radio" name="moment" id="momentNuit" value="nuit">
+                <label for="momentNuit">Nuit</label>
+                <input type="radio" name="moment" id="momentFerie" value="ferie">
+                <label for="momentFerie">Férié</label>
+            </div>
+        </div>
+
+        <div class="form-group">
             <label>Situation</label>
             <div class="situation-grid">
                 <input type="radio" name="situation" id="sitNormale" value="normale" checked>
@@ -298,76 +128,91 @@
             </div>
         </div>
 
+        <div class="form-group">
+            <label>Âge</label>
+            <div class="age-grid">
+                <div class="age-item">
+                    <input type="checkbox" id="ageMoins6">
+                    <label for="ageMoins6">&lt; 6 ans</label>
+                </div>
+                <div class="age-item">
+                    <input type="checkbox" id="agePlus80">
+                    <label for="agePlus80">&gt; 80 ans</label>
+                </div>
+            </div>
+        </div>
+
         <div class="form-group" id="tpChoiceGroup">
             <label>Mode de règlement</label>
             <div class="situation-grid" style="grid-template-columns: 1fr 1fr;">
-                <input type="radio" name="tpChoice" id="tpChoiceTout" value="tout" checked>
+                <input type="radio" name="tpChoice" id="tpChoiceTout" value="tout">
                 <label for="tpChoiceTout">Tout</label>
-                <input type="radio" name="tpChoice" id="tpChoiceTP" value="tp">
+                <input type="radio" name="tpChoice" id="tpChoiceTP" value="tp" checked>
                 <label for="tpChoiceTP">TP</label>
             </div>
         </div>
 
         <div class="form-group">
             <label>Cotations</label>
-            <div class="cotation-grid" style="grid-template-columns: 1fr 1fr 1fr;">
-                <div class="cotation-item">
+            <div class="cotation-grid">
+                <div class="cotation-item" id="itemVG">
                     <input type="checkbox" id="cotVG" checked>
                     <label for="cotVG"><span>VG</span><small>30€</small></label>
                 </div>
-                <div class="cotation-item">
+                <div class="cotation-item" id="itemG">
                     <input type="checkbox" id="cotG">
                     <label for="cotG"><span>G</span><small>30€</small></label>
                 </div>
-                <div></div>
-                <div class="cotation-item">
+                <div class="cotation-item" id="itemMD">
                     <input type="checkbox" id="cotMD">
                     <label for="cotMD"><span>MD</span><small>10€</small></label>
                 </div>
-                <div class="cotation-item">
+                <div class="cotation-item" id="itemVRD">
                     <input type="checkbox" id="cotVRD">
                     <label for="cotVRD"><span>VRD</span><small>36,50€</small></label>
                 </div>
-                <div class="cotation-item">
+                <div class="cotation-item" id="itemVRN">
                     <input type="checkbox" id="cotVRN">
                     <label for="cotVRN"><span>VRN</span><small>52,50€</small></label>
                 </div>
-                <div class="cotation-item">
-                    <input type="checkbox" id="cotMVR">
+                <div class="cotation-item" id="itemCRD">
+                    <input type="checkbox" id="cotCRD">
+                    <label for="cotCRD"><span>CRD</span><small>26,50€</small></label>
+                </div>
+                <div class="cotation-item" id="itemCRN">
+                    <input type="checkbox" id="cotCRN">
+                    <label for="cotCRN"><span>CRN</span><small>42,50€</small></label>
+                </div>
+                <div class="cotation-item" id="itemMVR">
+                    <input type="checkbox" id="cotMVR" checked>
                     <label for="cotMVR"><span>MVR</span><small>10€</small></label>
                 </div>
-                <div class="cotation-item">
-                    <input type="checkbox" id="cotSNP">
+                <div class="cotation-item" id="itemSNP">
+                    <input type="checkbox" id="cotSNP" checked>
                     <label for="cotSNP"><span>SNP</span><small>15€</small></label>
                 </div>
-                <div></div>
-                <div class="cotation-item">
+                <div class="cotation-item" id="itemMEG">
                     <input type="checkbox" id="cotMEG">
                     <label for="cotMEG"><span>MEG</span><small>5€</small></label>
                 </div>
-                <div class="cotation-item">
+                <div class="cotation-item" id="itemMOP">
                     <input type="checkbox" id="cotMOP">
                     <label for="cotMOP"><span>MOP</span><small>5€</small></label>
                 </div>
                 <div></div>
-                <div class="cotation-item">
+                <div class="cotation-item" id="itemIMP">
                     <input type="checkbox" id="cotIMP">
                     <label for="cotIMP"><span>IMP</span><small>60€</small></label>
                 </div>
-                <div class="cotation-item">
+                <div class="cotation-item" id="itemGAV">
                     <input type="checkbox" id="cotGAV">
                     <label for="cotGAV"><span>GAV</span><small>60€</small></label>
                 </div>
-                <div class="cotation-item">
+                <div class="cotation-item" id="itemHDT">
                     <input type="checkbox" id="cotHDT">
                     <label for="cotHDT"><span>HDT</span><small>80€</small></label>
                 </div>
             </div>
-        </div>
-
-        <div class="form-group">
-            <label>Notes</label>
-            <input type="text" id="notes" placeholder="Commentaire (optionnel)">
         </div>
 
         <div class="form-row">
@@ -379,6 +224,11 @@
                 <label>IK (km)</label>
                 <input type="number" id="ikKm" placeholder="0" inputmode="decimal" step="0.1" value="0">
             </div>
+        </div>
+
+        <div class="form-group">
+            <label>Notes</label>
+            <input type="text" id="notes" placeholder="Commentaire (optionnel)">
         </div>
 
         <div class="form-group" id="paiementGroup">
@@ -398,7 +248,7 @@
         </div>
 
         <div class="calc-preview" id="calcPreview">
-            <div class="calc-row"><span>Cotation</span><span id="prevCotation">VG</span></div>
+            <div class="calc-row"><span>Cotation</span><span id="prevCotation">VG+MVR+SNP</span></div>
             <div class="calc-row"><span>AMO (70%)</span><span id="prevAMO">0,00 €</span></div>
             <div class="calc-row"><span>AMC (30%)</span><span id="prevAMC">0,00 €</span></div>
             <div class="calc-row total"><span>Total</span><span id="prevTotal">0,00 €</span></div>
@@ -458,7 +308,7 @@
                 <div class="label">CA / Heure</div>
             </div>
         </div>
-        <div class="actions" style="grid-template-columns: 1fr 1fr 1fr;">
+        <div class="actions">
             <button class="btn btn-danger" id="btnReinit">Réinit</button>
             <button class="btn btn-success" id="btnPDF">PDF</button>
             <button class="btn btn-primary" id="btnPartager">Partager</button>
@@ -466,8 +316,8 @@
     </div>
 
     <script>
-        const TARIFS = { VG: 30, G: 30, MD: 10, VRD: 36.50, VRN: 52.50, MVR: 10, SNP: 15, MEG: 5, MOP: 5, IMP: 60, GAV: 60, HDT: 80 };
-        const IK_TAUX = 0.61;
+        var TARIFS = { VG: 30, G: 30, MD: 10, VRD: 36.50, VRN: 52.50, CRD: 26.50, CRN: 42.50, MVR: 10, SNP: 15, MEG: 5, MOP: 5, IMP: 60, GAV: 60, HDT: 80 };
+        var IK_TAUX = 0.61;
 
         var patients = [];
         var editingId = null;
@@ -475,27 +325,26 @@
         try {
             patients = JSON.parse(localStorage.getItem('sosPatients') || '[]');
             var savedDate = localStorage.getItem('sosDateGarde');
-            if (savedDate) {
-                dateGarde = new Date(savedDate);
-            }
-        } catch(e) {
-            patients = [];
-        }
+            if (savedDate) dateGarde = new Date(savedDate);
+        } catch(e) { patients = []; }
 
-        const today = new Date();
+        var today = new Date();
         var displayDate = dateGarde || today;
-        document.getElementById('currentDate').textContent = displayDate.toLocaleDateString('fr-FR', {
-            weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
-        });
+        document.getElementById('currentDate').textContent = displayDate.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
-        function formatMontant(n) {
-            return n.toFixed(2).replace('.', ',') + ' €';
+        // Détection auto du moment
+        function detectMoment() {
+            var h = today.getHours();
+            if (h >= 20 || h < 8) {
+                document.getElementById('momentNuit').checked = true;
+            } else {
+                document.getElementById('momentJour').checked = true;
+            }
+            updateCotationsAuto();
         }
 
-        function calculerIK(km) {
-            if (km <= 0) return 0;
-            return Math.round(km * IK_TAUX * 100) / 100;
-        }
+        function formatMontant(n) { return n.toFixed(2).replace('.', ',') + ' €'; }
+        function calculerIK(km) { return km <= 0 ? 0 : Math.round(km * IK_TAUX * 100) / 100; }
 
         function getCotations() {
             var codes = [];
@@ -505,6 +354,8 @@
             if (document.getElementById('cotMD').checked) { codes.push('MD'); total += TARIFS.MD; }
             if (document.getElementById('cotVRD').checked) { codes.push('VRD'); total += TARIFS.VRD; }
             if (document.getElementById('cotVRN').checked) { codes.push('VRN'); total += TARIFS.VRN; }
+            if (document.getElementById('cotCRD').checked) { codes.push('CRD'); total += TARIFS.CRD; }
+            if (document.getElementById('cotCRN').checked) { codes.push('CRN'); total += TARIFS.CRN; }
             if (document.getElementById('cotMVR').checked) { codes.push('MVR'); total += TARIFS.MVR; }
             if (document.getElementById('cotSNP').checked) { codes.push('SNP'); total += TARIFS.SNP; }
             if (document.getElementById('cotMEG').checked) { codes.push('MEG'); total += TARIFS.MEG; }
@@ -515,11 +366,63 @@
             return { codes: codes, total: total };
         }
 
+        function updateCotationsAuto() {
+            var moment = document.querySelector('input[name="moment"]:checked').value;
+            var isVG = document.getElementById('cotVG').checked;
+            var isG = document.getElementById('cotG').checked;
+            var ageMoins6 = document.getElementById('ageMoins6').checked;
+            var agePlus80 = document.getElementById('agePlus80').checked;
+
+            // MD visible seulement le jour
+            if (moment === 'jour') {
+                document.getElementById('itemMD').classList.remove('disabled');
+            } else {
+                document.getElementById('itemMD').classList.add('disabled');
+                document.getElementById('cotMD').checked = false;
+            }
+
+            // TP activé par défaut si situation normale
+            var situation = document.querySelector('input[name="situation"]:checked').value;
+            if (situation === 'normale') {
+                document.getElementById('tpChoiceTP').checked = true;
+            }
+
+            // MVR et SNP actifs par défaut le jour avec VG seulement
+            if (moment === 'jour' && isVG) {
+                document.getElementById('cotMVR').checked = true;
+                document.getElementById('cotSNP').checked = true;
+            } else {
+                document.getElementById('cotMVR').checked = false;
+                document.getElementById('cotSNP').checked = false;
+            }
+
+            // Reset majorations
+            document.getElementById('cotVRD').checked = false;
+            document.getElementById('cotVRN').checked = false;
+            document.getElementById('cotCRD').checked = false;
+            document.getElementById('cotCRN').checked = false;
+
+            // Activer la bonne majoration selon moment et VG/G
+            if (moment === 'nuit') {
+                if (isVG) document.getElementById('cotVRN').checked = true;
+                if (isG) document.getElementById('cotCRN').checked = true;
+            } else if (moment === 'ferie') {
+                if (isVG) document.getElementById('cotVRD').checked = true;
+                if (isG) document.getElementById('cotCRD').checked = true;
+            }
+
+            // MEG et MOP selon âge
+            document.getElementById('cotMEG').checked = ageMoins6;
+            document.getElementById('cotMOP').checked = agePlus80;
+
+            calculerPreview();
+        }
+
         function updateInterface() {
-            const situation = document.querySelector('input[name="situation"]:checked').value;
-            const deGroup = document.getElementById('deGroup');
-            const paiementGroup = document.getElementById('paiementGroup');
-            const tpChoiceGroup = document.getElementById('tpChoiceGroup');
+            var situation = document.querySelector('input[name="situation"]:checked').value;
+            var deGroup = document.getElementById('deGroup');
+            var paiementGroup = document.getElementById('paiementGroup');
+            var tpChoiceGroup = document.getElementById('tpChoiceGroup');
             
             if (situation === 'normale') {
                 deGroup.classList.remove('hidden');
@@ -563,7 +466,6 @@
                 tiersPayantSecu = amo + ik;
             }
 
-            // Construire la chaîne cotation
             var cotationStr = cotations.codes.join('+');
             if (de > 0) cotationStr += '+DE' + de + '€';
             if (ikKm > 0) cotationStr += '+IK' + ikKm + 'km';
@@ -578,11 +480,9 @@
 
         function ajouterPatient() {
             var nomPrenom = document.getElementById('nomPrenom').value.trim();
-            if (!nomPrenom) {
-                alert('Veuillez entrer le nom du patient');
-                return;
-            }
+            if (!nomPrenom) { alert('Veuillez entrer le nom du patient'); return; }
 
+            var moment = document.querySelector('input[name="moment"]:checked').value;
             var situation = document.querySelector('input[name="situation"]:checked').value;
             var tpChoice = document.querySelector('input[name="tpChoice"]:checked').value;
             var cotations = getCotations();
@@ -591,6 +491,8 @@
             var ik = calculerIK(ikKm);
             var paiement = document.querySelector('input[name="paiement"]:checked').value;
             var notes = document.getElementById('notes').value.trim();
+            var ageMoins6 = document.getElementById('ageMoins6').checked;
+            var agePlus80 = document.getElementById('agePlus80').checked;
 
             var totalActes = cotations.total;
             var amo, amc, patientPaye, tiersPayantSecu;
@@ -617,6 +519,7 @@
                 nomPrenom: nomPrenom,
                 numSecu: document.getElementById('numSecu').value.trim(),
                 codeOrga: document.getElementById('codeOrga').value.trim(),
+                moment: moment,
                 situation: situation,
                 tpChoice: situation === 'normale' ? tpChoice : 'tp',
                 cotations: cotations.codes,
@@ -629,24 +532,21 @@
                 paiement: situation === 'normale' ? paiement : 'aucun',
                 patientPaye: patientPaye,
                 tiersPayantSecu: tiersPayantSecu,
-                notes: notes
+                notes: notes,
+                ageMoins6: ageMoins6,
+                agePlus80: agePlus80
             };
 
             if (editingId) {
                 var index = patients.findIndex(function(p) { return p.id === editingId; });
-                if (index !== -1) {
-                    patients[index] = patient;
-                }
+                if (index !== -1) patients[index] = patient;
                 editingId = null;
                 document.getElementById('btnAjouter').textContent = 'Ajouter Patient';
             } else {
-                // Premier patient → enregistrer la date de garde
                 if (patients.length === 0 && !dateGarde) {
                     dateGarde = new Date();
                     localStorage.setItem('sosDateGarde', dateGarde.toISOString());
-                    document.getElementById('currentDate').textContent = dateGarde.toLocaleDateString('fr-FR', {
-                        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
-                    });
+                    document.getElementById('currentDate').textContent = dateGarde.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
                 }
                 patients.push(patient);
             }
@@ -661,14 +561,18 @@
             document.getElementById('numSecu').value = '';
             document.getElementById('codeOrga').value = '';
             document.getElementById('sitNormale').checked = true;
-            document.getElementById('tpChoiceTout').checked = true;
+            document.getElementById('tpChoiceTP').checked = true;
+            document.getElementById('ageMoins6').checked = false;
+            document.getElementById('agePlus80').checked = false;
             document.getElementById('cotVG').checked = true;
             document.getElementById('cotG').checked = false;
             document.getElementById('cotMD').checked = false;
             document.getElementById('cotVRD').checked = false;
             document.getElementById('cotVRN').checked = false;
-            document.getElementById('cotMVR').checked = false;
-            document.getElementById('cotSNP').checked = false;
+            document.getElementById('cotCRD').checked = false;
+            document.getElementById('cotCRN').checked = false;
+            document.getElementById('cotMVR').checked = true;
+            document.getElementById('cotSNP').checked = true;
             document.getElementById('cotMEG').checked = false;
             document.getElementById('cotMOP').checked = false;
             document.getElementById('cotIMP').checked = false;
@@ -680,6 +584,7 @@
             document.getElementById('paieCB').checked = true;
             editingId = null;
             document.getElementById('btnAjouter').textContent = 'Ajouter Patient';
+            detectMoment();
             updateInterface();
         }
 
@@ -700,7 +605,10 @@
             document.getElementById('numSecu').value = p.numSecu || '';
             document.getElementById('codeOrga').value = p.codeOrga || '';
             document.getElementById('notes').value = p.notes || '';
+            document.getElementById('ageMoins6').checked = p.ageMoins6 || false;
+            document.getElementById('agePlus80').checked = p.agePlus80 || false;
             
+            document.querySelector('input[name="moment"][value="' + (p.moment || 'jour') + '"]').checked = true;
             document.querySelector('input[name="situation"][value="' + p.situation + '"]').checked = true;
             if (p.situation === 'normale') {
                 document.querySelector('input[name="tpChoice"][value="' + p.tpChoice + '"]').checked = true;
@@ -712,6 +620,8 @@
             document.getElementById('cotMD').checked = p.cotations.indexOf('MD') !== -1;
             document.getElementById('cotVRD').checked = p.cotations.indexOf('VRD') !== -1;
             document.getElementById('cotVRN').checked = p.cotations.indexOf('VRN') !== -1;
+            document.getElementById('cotCRD').checked = p.cotations.indexOf('CRD') !== -1;
+            document.getElementById('cotCRN').checked = p.cotations.indexOf('CRN') !== -1;
             document.getElementById('cotMVR').checked = p.cotations.indexOf('MVR') !== -1;
             document.getElementById('cotSNP').checked = p.cotations.indexOf('SNP') !== -1;
             document.getElementById('cotMEG').checked = p.cotations.indexOf('MEG') !== -1;
@@ -726,7 +636,6 @@
             document.getElementById('btnAjouter').textContent = 'Modifier Patient';
             updateInterface();
             calculerPreview();
-            
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
@@ -746,6 +655,7 @@
                     '<button class="edit-btn" onclick="modifierPatient(' + p.id + ')">✎</button>' +
                     '<div class="name">' + (index + 1) + '. ' + p.nomPrenom + '</div>' +
                     '<div class="details">' +
+                        (p.moment ? p.moment.toUpperCase() + ' | ' : '') +
                         p.situation.toUpperCase() + (p.situation === 'normale' ? (p.tpChoice === 'tout' ? ' (Tout)' : ' (TP)') : '') + ' | ' + p.cotations.join('+') +
                         (p.numSecu ? ' | ' + p.numSecu.substring(0, 7) + '...' : '') +
                     '</div>' +
@@ -763,8 +673,8 @@
         }
 
         function updateTotals() {
-            let totalSecu = 0;
-            let totalEncaisse = { cb: 0, cheque: 0, liquide: 0, virement: 0 };
+            var totalSecu = 0;
+            var totalEncaisse = { cb: 0, cheque: 0, liquide: 0, virement: 0 };
 
             patients.forEach(function(p) {
                 totalSecu += p.tiersPayantSecu;
@@ -789,7 +699,6 @@
         function calculerHeures() {
             var isWeekend = (today.getDay() === 0 || today.getDay() === 6);
             var heures = 0;
-            
             if (isWeekend) {
                 if (document.getElementById('crenWE1').checked) heures += 6;
                 if (document.getElementById('crenWE2').checked) heures += 6;
@@ -803,7 +712,6 @@
 
         function initCreneaux() {
             var isWeekend = (today.getDay() === 0 || today.getDay() === 6);
-            
             if (isWeekend) {
                 document.getElementById('jourType').textContent = 'Week-end';
                 document.getElementById('creneauxSemaine').classList.add('hidden');
@@ -816,9 +724,7 @@
             updateTotals();
         }
 
-        function sauvegarder() {
-            localStorage.setItem('sosPatients', JSON.stringify(patients));
-        }
+        function sauvegarder() { localStorage.setItem('sosPatients', JSON.stringify(patients)); }
 
         function reinitialiser() {
             if (confirm('Réinitialiser tous les patients ?')) {
@@ -826,24 +732,15 @@
                 dateGarde = null;
                 localStorage.removeItem('sosPatients');
                 localStorage.removeItem('sosDateGarde');
-                document.getElementById('currentDate').textContent = today.toLocaleDateString('fr-FR', {
-                    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
-                });
+                document.getElementById('currentDate').textContent = today.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
                 afficherPatients();
                 resetForm();
             }
         }
 
         function genererPDF() {
-            if (patients.length === 0) {
-                alert('Aucun patient à exporter');
-                return;
-            }
-
-            if (typeof window.jspdf === 'undefined') {
-                alert('Erreur: Bibliothèque PDF non chargée. Vérifiez votre connexion internet et rechargez la page.');
-                return;
-            }
+            if (patients.length === 0) { alert('Aucun patient à exporter'); return; }
+            if (typeof window.jspdf === 'undefined') { alert('Erreur: Bibliothèque PDF non chargée.'); return; }
 
             try {
                 var jsPDF = window.jspdf.jsPDF;
@@ -852,7 +749,7 @@
                 var dateStr = pdfDate.toLocaleDateString('fr-FR');
 
                 doc.setFontSize(18);
-                doc.text('FEUILLE DE ROUTE - SOS MEDECIN', 105, 20, { align: 'center' });
+                doc.text('FEUILLE DE ROUTE', 105, 20, { align: 'center' });
                 doc.setFontSize(12);
                 doc.text('Date : ' + dateStr, 105, 28, { align: 'center' });
 
@@ -860,29 +757,13 @@
                     var cotationStr = p.cotations.join('+');
                     if (p.de > 0) cotationStr += '+DE' + p.de + '€';
                     if (p.ikKm > 0) cotationStr += '+IK' + p.ikKm + 'km';
-                    // Formater N° Sécu : collé sauf clé (XXXXXXXXXXXXX XX)
                     var numSecuPDF = '-';
                     if (p.numSecu) {
                         var digits = p.numSecu.replace(/\s/g, '');
-                        if (digits.length >= 15) {
-                            numSecuPDF = digits.substring(0, 13) + ' ' + digits.substring(13);
-                        } else {
-                            numSecuPDF = digits;
-                        }
+                        if (digits.length >= 15) numSecuPDF = digits.substring(0, 13) + ' ' + digits.substring(13);
+                        else numSecuPDF = digits;
                     }
-                    return [
-                        i + 1,
-                        p.nomPrenom,
-                        numSecuPDF,
-                        p.codeOrga || '-',
-                        p.situation === 'normale' ? (p.tpChoice === 'tout' ? 'TOUT' : 'TP') : p.situation.toUpperCase(),
-                        cotationStr,
-                        formatMontant(p.amo),
-                        formatMontant(p.amc),
-                        formatMontant(p.amo + p.amc + p.de + p.ik),
-                        p.patientPaye > 0 ? formatMontant(p.patientPaye) + ' ' + p.paiement.toUpperCase() : '-',
-                        p.notes || ''
-                    ];
+                    return [i + 1, p.nomPrenom, numSecuPDF, p.codeOrga || '-', p.situation === 'normale' ? (p.tpChoice === 'tout' ? 'TOUT' : 'TP') : p.situation.toUpperCase(), cotationStr, formatMontant(p.amo), formatMontant(p.amc), formatMontant(p.amo + p.amc + p.de + p.ik), p.patientPaye > 0 ? formatMontant(p.patientPaye) + ' ' + p.paiement.toUpperCase() : '-', p.notes || ''];
                 });
 
                 doc.autoTable({
@@ -895,15 +776,12 @@
                 });
 
                 var finalY = doc.lastAutoTable.finalY + 10;
-
                 var totalTPSecu = 0;
                 var encaisse = { cb: 0, cheque: 0, liquide: 0, virement: 0 };
 
                 patients.forEach(function(p) {
                     totalTPSecu += p.tiersPayantSecu;
-                    if (p.paiement !== 'aucun' && p.patientPaye > 0) {
-                        encaisse[p.paiement] += p.patientPaye;
-                    }
+                    if (p.paiement !== 'aucun' && p.patientPaye > 0) encaisse[p.paiement] += p.patientPaye;
                 });
 
                 var totalEncaisse = encaisse.cb + encaisse.cheque + encaisse.liquide + encaisse.virement;
@@ -911,7 +789,6 @@
                 var heures = calculerHeures();
                 var caHeure = heures > 0 ? totalCA / heures : 0;
                 
-                // Créneaux travaillés
                 var isWeekend = (today.getDay() === 0 || today.getDay() === 6);
                 var creneauxStr = '';
                 if (isWeekend) {
@@ -962,26 +839,14 @@
                 var filename = 'SOS_' + dateStr.replace(/\//g, '-') + '.pdf';
                 doc.save(filename);
             } catch(e) {
-                alert('Erreur lors de la generation du PDF: ' + e.message);
-                console.error(e);
+                alert('Erreur: ' + e.message);
             }
         }
 
         function partagerPDF() {
-            if (patients.length === 0) {
-                alert('Aucun patient à exporter');
-                return;
-            }
-
-            if (typeof window.jspdf === 'undefined') {
-                alert('Erreur: Bibliothèque PDF non chargée. Vérifiez votre connexion internet et rechargez la page.');
-                return;
-            }
-
-            if (!navigator.share) {
-                alert('Le partage n\'est pas disponible sur cet appareil. Utilisez le bouton PDF.');
-                return;
-            }
+            if (patients.length === 0) { alert('Aucun patient à exporter'); return; }
+            if (typeof window.jspdf === 'undefined') { alert('Erreur: Bibliothèque PDF non chargée.'); return; }
+            if (!navigator.share) { alert('Partage non disponible. Utilisez PDF.'); return; }
 
             try {
                 var jsPDF = window.jspdf.jsPDF;
@@ -990,7 +855,7 @@
                 var dateStr = pdfDate.toLocaleDateString('fr-FR');
 
                 doc.setFontSize(18);
-                doc.text('FEUILLE DE ROUTE - SOS MEDECIN', 105, 20, { align: 'center' });
+                doc.text('FEUILLE DE ROUTE', 105, 20, { align: 'center' });
                 doc.setFontSize(12);
                 doc.text('Date : ' + dateStr, 105, 28, { align: 'center' });
 
@@ -1001,25 +866,10 @@
                     var numSecuPDF = '-';
                     if (p.numSecu) {
                         var digits = p.numSecu.replace(/\s/g, '');
-                        if (digits.length >= 15) {
-                            numSecuPDF = digits.substring(0, 13) + ' ' + digits.substring(13);
-                        } else {
-                            numSecuPDF = digits;
-                        }
+                        if (digits.length >= 15) numSecuPDF = digits.substring(0, 13) + ' ' + digits.substring(13);
+                        else numSecuPDF = digits;
                     }
-                    return [
-                        i + 1,
-                        p.nomPrenom,
-                        numSecuPDF,
-                        p.codeOrga || '-',
-                        p.situation === 'normale' ? (p.tpChoice === 'tout' ? 'TOUT' : 'TP') : p.situation.toUpperCase(),
-                        cotationStr,
-                        formatMontant(p.amo),
-                        formatMontant(p.amc),
-                        formatMontant(p.amo + p.amc + p.de + p.ik),
-                        p.patientPaye > 0 ? formatMontant(p.patientPaye) + ' ' + p.paiement.toUpperCase() : '-',
-                        p.notes || ''
-                    ];
+                    return [i + 1, p.nomPrenom, numSecuPDF, p.codeOrga || '-', p.situation === 'normale' ? (p.tpChoice === 'tout' ? 'TOUT' : 'TP') : p.situation.toUpperCase(), cotationStr, formatMontant(p.amo), formatMontant(p.amc), formatMontant(p.amo + p.amc + p.de + p.ik), p.patientPaye > 0 ? formatMontant(p.patientPaye) + ' ' + p.paiement.toUpperCase() : '-', p.notes || ''];
                 });
 
                 doc.autoTable({
@@ -1032,22 +882,19 @@
                 });
 
                 var finalY = doc.lastAutoTable.finalY + 10;
-
                 var totalTPSecu = 0;
                 var encaisse = { cb: 0, cheque: 0, liquide: 0, virement: 0 };
 
                 patients.forEach(function(p) {
                     totalTPSecu += p.tiersPayantSecu;
-                    if (p.paiement !== 'aucun' && p.patientPaye > 0) {
-                        encaisse[p.paiement] += p.patientPaye;
-                    }
+                    if (p.paiement !== 'aucun' && p.patientPaye > 0) encaisse[p.paiement] += p.patientPaye;
                 });
 
                 var totalEncaisse = encaisse.cb + encaisse.cheque + encaisse.liquide + encaisse.virement;
                 var totalCA = totalTPSecu + totalEncaisse;
                 var heures = calculerHeures();
                 var caHeure = heures > 0 ? totalCA / heures : 0;
-
+                
                 var isWeekend = (today.getDay() === 0 || today.getDay() === 6);
                 var creneauxStr = '';
                 if (isWeekend) {
@@ -1066,7 +913,6 @@
                 doc.setFontSize(11);
                 doc.setFont(undefined, 'bold');
                 doc.text('RECAPITULATIF', 14, finalY);
-
                 doc.setFont(undefined, 'normal');
                 doc.setFontSize(10);
 
@@ -1075,65 +921,64 @@
                 y += 8;
                 doc.text('TIERS PAYANT SECU : ' + formatMontant(totalTPSecu), 14, y);
                 y += 8;
-                doc.text('ENCAISSE PATIENT :', 14, y);
-                y += 6;
-                doc.text('  CB : ' + formatMontant(encaisse.cb), 14, y);
-                y += 5;
-                doc.text('  Cheque : ' + formatMontant(encaisse.cheque), 14, y);
-                y += 5;
-                doc.text('  Liquide : ' + formatMontant(encaisse.liquide), 14, y);
-                y += 5;
-                doc.text('  Virement : ' + formatMontant(encaisse.virement), 14, y);
-                y += 5;
+                doc.text('ENCAISSE : ' + formatMontant(totalEncaisse), 14, y);
+                y += 10;
                 doc.setFont(undefined, 'bold');
-                doc.text('  TOTAL ENCAISSE : ' + formatMontant(totalEncaisse), 14, y);
-
-                y += 12;
                 doc.setFontSize(12);
-                doc.text('TOTAL CA : ' + formatMontant(totalCA), 14, y);
-                doc.text('CA/h : ' + formatMontant(caHeure), 120, y);
-                y += 8;
-                doc.text('Patients : ' + patients.length, 14, y);
+                doc.text('TOTAL CA : ' + formatMontant(totalCA) + ' | CA/h : ' + formatMontant(caHeure) + ' | ' + patients.length + ' patients', 14, y);
 
                 var filename = 'SOS_' + dateStr.replace(/\//g, '-') + '.pdf';
                 var pdfBlob = doc.output('blob');
                 var file = new File([pdfBlob], filename, { type: 'application/pdf' });
 
-                navigator.share({
-                    files: [file],
-                    title: 'Feuille de route SOS',
-                }).catch(function(err) {
-                    console.error('Erreur partage:', err);
-                    doc.save(filename);
-                });
-            } catch(e) {
-                alert('Erreur: ' + e.message);
-                console.error(e);
-            }
+                navigator.share({ files: [file], title: 'Feuille de route' }).catch(function(err) { doc.save(filename); });
+            } catch(e) { alert('Erreur: ' + e.message); }
         }
 
         // Event listeners
+        document.querySelectorAll('input[name="moment"]').forEach(function(r) { r.addEventListener('change', updateCotationsAuto); });
         document.querySelectorAll('input[name="situation"]').forEach(function(r) { r.addEventListener('change', updateInterface); });
         document.querySelectorAll('input[name="tpChoice"]').forEach(function(r) { r.addEventListener('change', calculerPreview); });
         document.querySelectorAll('.cotation-item input').forEach(function(cb) { cb.addEventListener('change', calculerPreview); });
         document.getElementById('de').addEventListener('input', calculerPreview);
         document.getElementById('ikKm').addEventListener('input', calculerPreview);
+        document.getElementById('ageMoins6').addEventListener('change', function() {
+            document.getElementById('cotMEG').checked = this.checked;
+            if (this.checked) { document.getElementById('agePlus80').checked = false; document.getElementById('cotMOP').checked = false; }
+            calculerPreview();
+        });
+        document.getElementById('agePlus80').addEventListener('change', function() {
+            document.getElementById('cotMOP').checked = this.checked;
+            if (this.checked) { document.getElementById('ageMoins6').checked = false; document.getElementById('cotMEG').checked = false; }
+            calculerPreview();
+        });
 
-        // Exclusivité VG vs IMP/GAV/HDT
+        // VG / G exclusifs
         document.getElementById('cotVG').addEventListener('change', function() {
             if (this.checked) {
+                document.getElementById('cotG').checked = false;
                 document.getElementById('cotIMP').checked = false;
                 document.getElementById('cotGAV').checked = false;
                 document.getElementById('cotHDT').checked = false;
-                calculerPreview();
             }
+            updateCotationsAuto();
+        });
+        document.getElementById('cotG').addEventListener('change', function() {
+            if (this.checked) {
+                document.getElementById('cotVG').checked = false;
+                document.getElementById('cotIMP').checked = false;
+                document.getElementById('cotGAV').checked = false;
+                document.getElementById('cotHDT').checked = false;
+            }
+            updateCotationsAuto();
         });
         ['cotIMP', 'cotGAV', 'cotHDT'].forEach(function(id) {
             document.getElementById(id).addEventListener('change', function() {
                 if (this.checked) {
                     document.getElementById('cotVG').checked = false;
-                    calculerPreview();
+                    document.getElementById('cotG').checked = false;
                 }
+                calculerPreview();
             });
         });
 
@@ -1142,7 +987,7 @@
         document.getElementById('btnPDF').addEventListener('click', genererPDF);
         document.getElementById('btnPartager').addEventListener('click', partagerPDF);
 
-        // Formatage automatique N° Sécu : X XX XX XX XXX XXX XX
+        // Formatage N° Sécu
         document.getElementById('numSecu').addEventListener('input', function() {
             var val = this.value.replace(/\s/g, '').replace(/\D/g, '');
             if (val.length > 15) val = val.substring(0, 15);
@@ -1157,7 +1002,7 @@
             this.value = formatted;
         });
 
-        // Formatage automatique Code Orga : XX XXX XXXX
+        // Formatage Code Orga
         document.getElementById('codeOrga').addEventListener('input', function() {
             var val = this.value.replace(/\s/g, '').replace(/\D/g, '');
             if (val.length > 9) val = val.substring(0, 9);
@@ -1168,17 +1013,41 @@
             this.value = formatted;
         });
 
-        // Init
-        afficherPatients();
-        calculerPreview();
-        initCreneaux();
-
-        // Event listeners créneaux
         document.getElementById('cren1').addEventListener('change', updateTotals);
         document.getElementById('cren2').addEventListener('change', updateTotals);
         document.getElementById('cren3').addEventListener('change', updateTotals);
         document.getElementById('crenWE1').addEventListener('change', updateTotals);
         document.getElementById('crenWE2').addEventListener('change', updateTotals);
+
+        // Changer la date en cliquant
+        var dateInput = document.getElementById('dateInput');
+        document.getElementById('currentDate').addEventListener('click', function() {
+            var currentDate = dateGarde || today;
+            dateInput.value = currentDate.toISOString().split('T')[0];
+            dateInput.style.left = '50%';
+            dateInput.style.transform = 'translateX(-50%)';
+            dateInput.style.position = 'fixed';
+            dateInput.style.top = '60px';
+            dateInput.style.zIndex = '9999';
+            dateInput.focus();
+        });
+        dateInput.addEventListener('change', function() {
+            if (this.value) {
+                dateGarde = new Date(this.value + 'T12:00:00');
+                localStorage.setItem('sosDateGarde', dateGarde.toISOString());
+                document.getElementById('currentDate').textContent = dateGarde.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+            }
+            this.style.left = '-9999px';
+        });
+        dateInput.addEventListener('blur', function() {
+            this.style.left = '-9999px';
+        });
+
+        // Init
+        afficherPatients();
+        detectMoment();
+        initCreneaux();
+        updateInterface();
     </script>
 </body>
 </html>
