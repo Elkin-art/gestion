@@ -163,8 +163,9 @@
                     <input type="checkbox" id="cotG">
                     <label for="cotG"><span>G</span><small>30€</small></label>
                 </div>
+                <div></div>
                 <div class="cotation-item" id="itemMD">
-                    <input type="checkbox" id="cotMD">
+                    <input type="checkbox" id="cotMD" checked>
                     <label for="cotMD"><span>MD</span><small>10€</small></label>
                 </div>
                 <div class="cotation-item" id="itemVRD">
@@ -183,6 +184,7 @@
                     <input type="checkbox" id="cotCRN">
                     <label for="cotCRN"><span>CRN</span><small>42,50€</small></label>
                 </div>
+                <div></div>
                 <div class="cotation-item" id="itemMVR">
                     <input type="checkbox" id="cotMVR" checked>
                     <label for="cotMVR"><span>MVR</span><small>10€</small></label>
@@ -191,6 +193,7 @@
                     <input type="checkbox" id="cotSNP" checked>
                     <label for="cotSNP"><span>SNP</span><small>15€</small></label>
                 </div>
+                <div></div>
                 <div class="cotation-item" id="itemMEG">
                     <input type="checkbox" id="cotMEG">
                     <label for="cotMEG"><span>MEG</span><small>5€</small></label>
@@ -332,7 +335,6 @@
         var displayDate = dateGarde || today;
         document.getElementById('currentDate').textContent = displayDate.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
-        // Détection auto du moment
         function detectMoment() {
             var h = today.getHours();
             if (h >= 20 || h < 8) {
@@ -373,7 +375,6 @@
             var ageMoins6 = document.getElementById('ageMoins6').checked;
             var agePlus80 = document.getElementById('agePlus80').checked;
 
-            // MD visible seulement le jour
             if (moment === 'jour') {
                 document.getElementById('itemMD').classList.remove('disabled');
             } else {
@@ -381,28 +382,26 @@
                 document.getElementById('cotMD').checked = false;
             }
 
-            // TP activé par défaut si situation normale
             var situation = document.querySelector('input[name="situation"]:checked').value;
             if (situation === 'normale') {
                 document.getElementById('tpChoiceTP').checked = true;
             }
 
-            // MVR et SNP actifs par défaut le jour avec VG seulement
             if (moment === 'jour' && isVG) {
                 document.getElementById('cotMVR').checked = true;
                 document.getElementById('cotSNP').checked = true;
+                document.getElementById('cotMD').checked = true;
             } else {
                 document.getElementById('cotMVR').checked = false;
                 document.getElementById('cotSNP').checked = false;
+                document.getElementById('cotMD').checked = false;
             }
 
-            // Reset majorations
             document.getElementById('cotVRD').checked = false;
             document.getElementById('cotVRN').checked = false;
             document.getElementById('cotCRD').checked = false;
             document.getElementById('cotCRN').checked = false;
 
-            // Activer la bonne majoration selon moment et VG/G
             if (moment === 'nuit') {
                 if (isVG) document.getElementById('cotVRN').checked = true;
                 if (isG) document.getElementById('cotCRN').checked = true;
@@ -411,7 +410,6 @@
                 if (isG) document.getElementById('cotCRD').checked = true;
             }
 
-            // MEG et MOP selon âge
             document.getElementById('cotMEG').checked = ageMoins6;
             document.getElementById('cotMOP').checked = agePlus80;
 
@@ -566,7 +564,7 @@
             document.getElementById('agePlus80').checked = false;
             document.getElementById('cotVG').checked = true;
             document.getElementById('cotG').checked = false;
-            document.getElementById('cotMD').checked = false;
+            document.getElementById('cotMD').checked = true;
             document.getElementById('cotVRD').checked = false;
             document.getElementById('cotVRN').checked = false;
             document.getElementById('cotCRD').checked = false;
@@ -935,7 +933,6 @@
             } catch(e) { alert('Erreur: ' + e.message); }
         }
 
-        // Event listeners
         document.querySelectorAll('input[name="moment"]').forEach(function(r) { r.addEventListener('change', updateCotationsAuto); });
         document.querySelectorAll('input[name="situation"]').forEach(function(r) { r.addEventListener('change', updateInterface); });
         document.querySelectorAll('input[name="tpChoice"]').forEach(function(r) { r.addEventListener('change', calculerPreview); });
@@ -953,7 +950,6 @@
             calculerPreview();
         });
 
-        // VG / G exclusifs
         document.getElementById('cotVG').addEventListener('change', function() {
             if (this.checked) {
                 document.getElementById('cotG').checked = false;
@@ -987,7 +983,6 @@
         document.getElementById('btnPDF').addEventListener('click', genererPDF);
         document.getElementById('btnPartager').addEventListener('click', partagerPDF);
 
-        // Formatage N° Sécu
         document.getElementById('numSecu').addEventListener('input', function() {
             var val = this.value.replace(/\s/g, '').replace(/\D/g, '');
             if (val.length > 15) val = val.substring(0, 15);
@@ -1000,9 +995,43 @@
             if (val.length > 10) formatted += ' ' + val.substring(10, 13);
             if (val.length > 13) formatted += ' ' + val.substring(13, 15);
             this.value = formatted;
+
+            if (val.length >= 5) {
+                var anneeSecu = parseInt(val.substring(1, 3));
+                var moisSecu = parseInt(val.substring(3, 5));
+                var currentYear = today.getFullYear();
+                var currentMonth = today.getMonth() + 1;
+                
+                var anneeNaissance;
+                if (anneeSecu >= 20 && anneeSecu <= 26) {
+                    anneeNaissance = 2000 + anneeSecu;
+                } else {
+                    anneeNaissance = 1900 + anneeSecu;
+                }
+                
+                var age = currentYear - anneeNaissance;
+                if (currentMonth < moisSecu) age--;
+                
+                if (age < 6) {
+                    document.getElementById('ageMoins6').checked = true;
+                    document.getElementById('agePlus80').checked = false;
+                    document.getElementById('cotMEG').checked = true;
+                    document.getElementById('cotMOP').checked = false;
+                } else if (age > 80) {
+                    document.getElementById('agePlus80').checked = true;
+                    document.getElementById('ageMoins6').checked = false;
+                    document.getElementById('cotMOP').checked = true;
+                    document.getElementById('cotMEG').checked = false;
+                } else {
+                    document.getElementById('ageMoins6').checked = false;
+                    document.getElementById('agePlus80').checked = false;
+                    document.getElementById('cotMEG').checked = false;
+                    document.getElementById('cotMOP').checked = false;
+                }
+                calculerPreview();
+            }
         });
 
-        // Formatage Code Orga
         document.getElementById('codeOrga').addEventListener('input', function() {
             var val = this.value.replace(/\s/g, '').replace(/\D/g, '');
             if (val.length > 9) val = val.substring(0, 9);
@@ -1019,7 +1048,6 @@
         document.getElementById('crenWE1').addEventListener('change', updateTotals);
         document.getElementById('crenWE2').addEventListener('change', updateTotals);
 
-        // Changer la date en cliquant
         var dateInput = document.getElementById('dateInput');
         document.getElementById('currentDate').addEventListener('click', function() {
             var currentDate = dateGarde || today;
@@ -1043,7 +1071,6 @@
             this.style.left = '-9999px';
         });
 
-        // Init
         afficherPatients();
         detectMoment();
         initCreneaux();
