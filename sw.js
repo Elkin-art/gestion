@@ -4,7 +4,7 @@
    - Outils PDF, icône, manifest : copie locale d'abord (fonctionnent hors ligne).
    Changer CACHE (ex. sos-v2.1) uniquement si les outils PDF ou ce fichier changent. */
 
-var CACHE = 'sos-v2.0';
+var CACHE = 'sos-v2.1';
 var DELAI_RESEAU_MS = 3000;
 var FICHIERS_LOCAUX = ['./', './index.html', './manifest.json', './icon.png'];
 var LIBRAIRIES = [
