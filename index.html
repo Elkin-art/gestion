@@ -28,6 +28,22 @@
         }
         h1 { font-size: 20px; text-align: center; margin-bottom: 8px; }
 
+        /* Masque la zone de la barre d'état iPhone (contenu qui défile dessous) */
+        body::before {
+            content: ''; position: fixed; top: 0; left: 0; right: 0; height: env(safe-area-inset-top);
+            background: var(--bg); z-index: 20;
+        }
+        /* Bandeau du CA en cours, toujours visible */
+        .live-bar {
+            position: sticky; top: env(safe-area-inset-top); z-index: 10; display: block; width: 100%;
+            margin: 0 0 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px;
+            background: rgba(30, 41, 59, 0.95); color: var(--text); font-size: 14px; font-weight: 600;
+            text-align: center; cursor: pointer; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+        }
+        .live-bar .sep { color: var(--text-dim); margin: 0 6px; }
+        .live-bar .ca { color: var(--warning); }
+        .live-bar .heure { color: var(--pink); }
+
         /* Date de garde : l'input date transparent recouvre le texte pour ouvrir le sélecteur natif */
         .date-wrap { position: relative; width: fit-content; margin: 0 auto 20px; }
         .date { color: var(--text-dim); font-size: 14px; text-decoration: underline; text-align: center; }
@@ -37,6 +53,7 @@
         }
 
         .card { background: var(--bg-card); border-radius: 16px; padding: 20px; margin-bottom: 16px; }
+        #recap { scroll-margin-top: calc(70px + env(safe-area-inset-top)); }
         .card h2 { font-size: 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
         .card h2::before { content: ''; width: 4px; height: 18px; background: var(--accent); border-radius: 2px; }
 
@@ -54,6 +71,14 @@
         textarea { font-size: 14px; line-height: 1.5; min-height: 200px; resize: vertical; }
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .hint { font-size: 12px; color: var(--text-dim); margin-top: 6px; }
+
+        /* Nom + photo carte Vitale */
+        .name-row { display: grid; grid-template-columns: 1fr 52px; gap: 6px; }
+        .photo-btn { background: var(--bg-input); border: 1px solid var(--border); border-radius: 10px; font-size: 22px; cursor: pointer; }
+        .photo-btn:disabled { opacity: 0.4; cursor: default; }
+        .ocr-status { font-size: 12px; margin-top: 6px; color: var(--text-dim); line-height: 1.4; }
+        .ocr-status.ok { color: var(--success); }
+        .ocr-status.ko { color: var(--warning); }
 
         /* N° Sécu */
         .nir-row { display: grid; grid-template-columns: 1fr 44px 44px; gap: 6px; }
@@ -108,6 +133,9 @@
         .btn-primary { background: var(--accent); }
         .btn-success { background: var(--success); }
         .btn-danger { background: var(--danger); }
+        .btn-secondary { background: var(--bg-input); }
+        .btn-row { display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 16px; }
+        .btn-row.edition { grid-template-columns: 1fr 2fr; }
 
         .patient-list { margin-top: 8px; }
         .patient-item { background: var(--bg); border-radius: 10px; padding: 14px; padding-right: 80px; margin-bottom: 10px; position: relative; }
@@ -143,6 +171,7 @@
     </style>
 </head>
 <body>
+    <button type="button" class="live-bar" id="liveBar" aria-label="Voir le récapitulatif"></button>
     <h1>🚑 Gestion</h1>
     <div class="date-wrap">
         <div class="date" id="currentDate"></div>
@@ -155,7 +184,12 @@
 
         <div class="form-group">
             <label for="nomPrenom">Nom Prénom</label>
-            <input type="text" id="nomPrenom" placeholder="Nom Prénom" autocomplete="off">
+            <div class="name-row">
+                <input type="text" id="nomPrenom" placeholder="Nom Prénom" autocomplete="off">
+                <button type="button" class="photo-btn" id="btnPhoto" aria-label="Photographier la carte Vitale">📷</button>
+            </div>
+            <input type="file" id="photoCarte" accept="image/*" capture="environment" hidden>
+            <div class="ocr-status" id="ocrStatus"></div>
         </div>
 
         <div class="form-group">
@@ -251,7 +285,10 @@
             <div class="calc-row" style="color: #60a5fa;"><span>Tiers Payant Sécu</span><span id="prevSecu">0,00 €</span></div>
         </div>
 
-        <button type="button" class="btn btn-primary" style="margin-top: 16px;" id="btnAjouter">Ajouter Patient</button>
+        <div class="btn-row" id="btnRow">
+            <button type="button" class="btn btn-secondary hidden" id="btnAnnuler">Annuler</button>
+            <button type="button" class="btn btn-primary" id="btnAjouter">Ajouter Patient</button>
+        </div>
     </div>
 
     <!-- ===== Liste des patients ===== -->
@@ -261,7 +298,7 @@
     </div>
 
     <!-- ===== Récapitulatif ===== -->
-    <div class="card">
+    <div class="card" id="recap">
         <h2>Récapitulatif</h2>
         <div class="form-group">
             <label>Créneaux travaillés (<span id="jourType">Semaine</span>)</label>
@@ -322,7 +359,7 @@
        CONFIGURATION — tout ce qui concerne les tarifs et les règles est ici
        ===================================================================== */
 
-    var APP_VERSION = '2.0';
+    var APP_VERSION = '2.1';
     var IK_TAUX = 0.61;
 
     var TARIFS = {
@@ -575,7 +612,10 @@
         editionId: null,
         momentMode: 'auto',          // 'auto' | 'manuel' | 'patient'
         situationPrecedente: 'normale',
-        dernierePartieAge: ''        // évite de re-détecter l'âge à chaque chiffre tapé
+        dernierePartieAge: '',       // évite de re-détecter l'âge à chaque chiffre tapé
+        ageAuto: null,               // âge coché par la détection (jamais un choix manuel)
+        ocrEnCours: false,
+        formulaireId: 0              // change à chaque nouveau formulaire : une lecture en retard est ignorée
     };
 
     function chargerEtat() {
@@ -756,14 +796,32 @@
         Array.prototype.forEach.call(document.querySelectorAll('.nir-btn'), function (b) { b.disabled = !actif; });
     }
 
+    function cocherAge(valeur) {
+        $('ageMoins6').checked = valeur === 'moins6';
+        $('agePlus80').checked = valeur === 'plus80';
+    }
+
+    // La détection coche l'âge, mais ne décoche jamais un choix manuel :
+    // un enfant saisi avec le N° Sécu d'un parent garde son « < 6 ans ».
+    // Elle ne retire que ce qu'elle a elle-même coché (ex. faute de frappe corrigée).
     function detecterAge(n) {
         var partie = n.substring(0, 5);
         if (partie.length < 5 || partie === etat.dernierePartieAge) return;
         etat.dernierePartieAge = partie;
         var age = ageDepuisNir(n, dateDeGarde());
         if (age === null) return;
-        $('ageMoins6').checked = age < AGE_MEG_MAX;
-        $('agePlus80').checked = age >= AGE_MOP_MIN;
+        var cible = age < AGE_MEG_MAX ? 'moins6' : (age >= AGE_MOP_MIN ? 'plus80' : null);
+        var actuel = ageCourant();
+        var ageLibre = actuel === null || actuel === etat.ageAuto;   // pas de choix manuel en place
+        if (cible && ageLibre) {
+            cocherAge(cible);
+            etat.ageAuto = cible;
+        } else if (!cible && actuel !== null && ageLibre) {
+            cocherAge(null);
+            etat.ageAuto = null;
+        } else {
+            return;
+        }
         appliquerAge();
     }
 
@@ -834,7 +892,10 @@
         ['nomPrenom', 'numSecu', 'codeOrga', 'notes', 'de', 'ikKm'].forEach(function (id) { $(id).value = ''; });
         majStatutNir('');
         majBoutonsCorse('');
+        statutOCR('', '');
+        etat.formulaireId++;
         etat.dernierePartieAge = '';
+        etat.ageAuto = null;
         cocherRadio('situation', 'normale');
         etat.situationPrecedente = 'normale';
         cocherRadio('tpChoice', 'tp');
@@ -842,11 +903,23 @@
         $('ageMoins6').checked = false;
         $('agePlus80').checked = false;
         ACTES.forEach(function (a) { cocher(a, a === 'VG'); });
-        etat.editionId = null;
-        $('btnAjouter').textContent = 'Ajouter Patient';
+        modeEdition(false);
         momentAutomatique();
         majInterfaceSituation();
         appliquerCotationsParDefaut();
+    }
+
+    // Bascule l'interface entre « nouveau patient » et « modification »
+    function modeEdition(id) {
+        etat.editionId = id || null;
+        $('btnAjouter').textContent = id ? 'Modifier Patient' : 'Ajouter Patient';
+        $('btnAnnuler').classList.toggle('hidden', !id);
+        $('btnRow').classList.toggle('edition', !!id);
+    }
+
+    // Abandonne la modification : rien n'est enregistré, le formulaire repart à zéro
+    function annulerModification() {
+        nouveauPatient();
     }
 
     function modifierPatient(id) {
@@ -854,7 +927,10 @@
         if (i === -1) return;
         var p = etat.patients[i];
 
-        etat.editionId = id;
+        modeEdition(id);
+        statutOCR('', '');
+        etat.formulaireId++;
+        etat.ageAuto = null;
         $('nomPrenom').value = p.nomPrenom || '';
         $('codeOrga').value = p.codeOrga || '';
         $('notes').value = p.notes || '';
@@ -884,7 +960,6 @@
         $('de').value = p.de > 0 ? formatNombre(p.de) : '';
         $('ikKm').value = p.ikKm > 0 ? formatNombre(p.ikKm) : '';
 
-        $('btnAjouter').textContent = 'Modifier Patient';
         majInterfaceSituation();
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -962,6 +1037,11 @@
         $('totalCA').textContent = formatMontant(t.ca);
         $('caHeure').textContent = formatMontant(t.caHeure) + '/h';
         $('totalHeures').textContent = t.heures;
+
+        var n = etat.patients.length;
+        $('liveBar').innerHTML = n + ' patient' + (n > 1 ? 's' : '') +
+            '<span class="sep">·</span><span class="ca">' + formatMontant(t.ca) + '</span>' +
+            '<span class="sep">·</span><span class="heure">' + formatMontant(t.caHeure) + '/h</span>';
     }
 
     /* =====================================================================
@@ -1199,6 +1279,277 @@
     }
 
     /* =====================================================================
+       CARTE VITALE : lecture du texte d'une photo (OCR), 100 % dans le téléphone
+       ---------------------------------------------------------------------
+       - Outil Tesseract chargé à la 1re utilisation (~5 Mo), gardé ensuite dans
+         le stockage de la page => fonctionne hors ligne, rien n'est envoyé.
+       - Le N° Sécu n'est retenu que si sa clé est valide (jamais de faux numéro).
+       ===================================================================== */
+
+    var OCR = {
+        cache: 'ocr-tesseract-6.0.1',     // ne commence pas par « sos- » : jamais effacé par sw.js
+        lib: 'https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/tesseract.min.js',
+        worker: 'https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/worker.min.js',
+        core: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@6.0.0/tesseract-core-lstm.wasm.js',
+        coreSimd: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@6.0.0/tesseract-core-simd-lstm.wasm.js',
+        langue: 'https://cdn.jsdelivr.net/npm/@tesseract.js-data/fra@1.0.0/4.0.0_best_int/fra.traineddata.gz',
+        tailleMax: 1600,
+        // Essais successifs, seulement si le précédent n'a pas trouvé de N° Sécu valide
+        essais: [
+            { rotation: 0, psm: '3' }, { rotation: 0, psm: '11' },
+            { rotation: 90, psm: '3' }, { rotation: 270, psm: '3' }, { rotation: 180, psm: '3' }
+        ]
+    };
+    var ocrWorker = null;
+
+    // Lettres que l'OCR confond avec des chiffres
+    var CONFUSIONS = { O: '0', Q: '0', D: '0', I: '1', L: '1', '|': '1', '!': '1', Z: '2', S: '5', G: '6', B: '8' };
+    var MOTS_CARTE = ['CARTE', 'VITALE', 'ASSURANCE', 'MALADIE', 'SECURITE', 'SÉCURITÉ', 'SOCIALE', 'REPUBLIQUE',
+        'RÉPUBLIQUE', 'FRANCAISE', 'FRANÇAISE', 'VALIDITE', 'VALIDITÉ', 'EMISE', 'ÉMISE', 'NUMERO', 'NUMÉRO', 'AMELI', 'LIBERTE', 'EGALITE', 'FRATERNITE'];
+
+    function statutOCR(texte, type) {
+        var s = $('ocrStatus');
+        s.textContent = texte;
+        s.className = 'ocr-status' + (type ? ' ' + type : '');
+    }
+
+    function nirPlausible(n) {
+        return /^[1278]\d{2}(0[1-9]|1[0-2]|[2-4]\d|[5-9]\d)/.test(n) && cleNirValide(n) === true;
+    }
+
+    // Cherche un N° Sécu valide dans une ligne de texte lu. Renvoie { nir, corrections } ou null.
+    function chercherNir(ligne) {
+        var brut = String(ligne).toUpperCase().replace(/[^0-9A-Z|!]/g, '');
+        var meilleur = null;
+        function proposer(n, corrections) {
+            if (nirPlausible(n) && (!meilleur || corrections < meilleur.corrections)) meilleur = { nir: n, corrections: corrections };
+        }
+        for (var i = 0; i + 15 <= brut.length; i++) {
+            var fenetre = brut.substr(i, 15), chiffres = '', corrections = 0, lisible = true;
+            for (var j = 0; j < 15 && lisible; j++) {
+                var c = fenetre.charAt(j);
+                if (c >= '0' && c <= '9') chiffres += c;
+                else if (CONFUSIONS[c]) { chiffres += CONFUSIONS[c]; corrections++; }
+                else if (j !== 6) lisible = false;
+                else chiffres += c;                       // lettre en 7e position : peut-être 2A / 2B
+            }
+            if (!lisible) continue;
+            // Département corse 2A / 2B (A parfois lu « 4 », B parfois lu « 8 »)
+            var c6 = fenetre.charAt(6), base = chiffres.substring(0, 6), fin = chiffres.substring(7);
+            if (base.charAt(5) === '2' && /[A4B8]/.test(c6)) {
+                proposer(base + (/[A4]/.test(c6) ? 'A' : 'B') + fin, corrections + (/[48]/.test(c6) ? 1 : 0));
+            }
+            if (/\d/.test(chiffres.charAt(6))) proposer(chiffres, corrections);
+            else if (CONFUSIONS[c6]) proposer(base + CONFUSIONS[c6] + fin, corrections + 1);
+        }
+        return meilleur;
+    }
+
+    function nettoyerNom(ligne) {
+        return String(ligne).toUpperCase()
+            .replace(/[^A-ZÀÂÄÇÉÈÊËÎÏÔÖÙÛÜŸÆŒ' -]/g, ' ')
+            .replace(/\s+/g, ' ').replace(/^[ '-]+|[ '-]+$/g, '').trim();
+    }
+
+    function ressembleAUnNom(ligne) {
+        if (/\d/.test(ligne)) return false;
+        var lettres = (ligne.match(/[A-Za-zÀ-ÿ]/g) || []).length;
+        if (lettres < 3 || lettres / ligne.replace(/\s/g, '').length < 0.8) return false;
+        var nom = nettoyerNom(ligne), mots = nom.split(' ');
+        if (mots.length > 5) return false;
+        var motsCarte = mots.filter(function (m) { return contient(MOTS_CARTE, m); }).length;
+        return motsCarte === 0 && mots.some(function (m) { return m.length >= 2; });
+    }
+
+    // Analyse le texte lu : N° Sécu (ancre) puis jusqu'à 2 lignes de nom juste au-dessus.
+    function analyserTexteCarte(texte) {
+        var lignes = String(texte || '').split(/\r?\n/).map(function (l) { return l.trim(); }).filter(Boolean);
+        var trouve = null, indexNir = -1, i, r;
+        // 1) Numéro sur une seule ligne (cas normal)
+        for (i = 0; i < lignes.length; i++) {
+            r = chercherNir(lignes[i]);
+            if (r && (!trouve || r.corrections < trouve.corrections)) { trouve = r; indexNir = i; }
+        }
+        // 2) Sinon, numéro coupé sur deux lignes consécutives
+        for (i = 0; !trouve && i + 1 < lignes.length; i++) {
+            r = chercherNir(lignes[i] + lignes[i + 1]);
+            if (r) { trouve = r; indexNir = i; }
+        }
+        if (!trouve) return { nir: null, nom: null };
+
+        var morceaux = [];
+        for (var j = indexNir - 1; j >= 0 && morceaux.length < 2; j--) {
+            if (ressembleAUnNom(lignes[j])) morceaux.unshift(nettoyerNom(lignes[j]));
+            else if (morceaux.length) break;          // les lignes du nom sont consécutives
+        }
+        return { nir: trouve.nir, nom: morceaux.join(' ') || null };
+    }
+
+    function simdDisponible() {
+        try {
+            return WebAssembly.validate(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123, 3, 2, 1, 0, 10, 10, 1, 8, 0, 65, 0, 253, 15, 253, 98, 11]));
+        } catch (e) { return false; }
+    }
+
+    // Fichier de l'outil : depuis le stockage du téléphone, sinon téléchargé puis gardé.
+    function fichierOCR(url) {
+        function telecharger() {
+            return fetch(url, { mode: 'cors' }).then(function (rep) {
+                if (!rep.ok) throw new Error('HTTP ' + rep.status);
+                return rep;
+            });
+        }
+        if (!window.caches) return telecharger().then(function (rep) { return rep.blob(); });
+        return caches.open(OCR.cache).then(function (cache) {
+            return cache.match(url).then(function (enCache) {
+                if (enCache) return enCache.blob();
+                return telecharger().then(function (rep) {
+                    return cache.put(url, rep.clone()).then(function () { return rep.blob(); });
+                });
+            });
+        });
+    }
+
+    function chargerScript(blob) {
+        return new Promise(function (resolve, reject) {
+            var s = document.createElement('script');
+            s.src = URL.createObjectURL(blob);
+            s.onload = resolve;
+            s.onerror = function () { reject(new Error('Chargement de l\'outil impossible')); };
+            document.head.appendChild(s);
+        });
+    }
+
+    function progressionOCR(m) {
+        if (m && m.status === 'recognizing text' && etat.ocrEnCours) {
+            statutOCR('Lecture de la carte… ' + Math.round((m.progress || 0) * 100) + ' %', '');
+        }
+    }
+
+    // Démarre l'outil une seule fois. Le moteur et la langue sont injectés dans le worker :
+    // aucun téléchargement depuis le worker (fiable hors ligne sur iPhone).
+    function chargerOCR() {
+        if (ocrWorker) return ocrWorker;
+        var urlMoteur = simdDisponible() ? OCR.coreSimd : OCR.core;
+        ocrWorker = Promise.all([OCR.lib, OCR.worker, urlMoteur, OCR.langue].map(fichierOCR)).then(function (f) {
+            var urlLangue = URL.createObjectURL(f[3]);
+            var redirection = 'self.fetch=(function(f){return function(u,o){return String(u).indexOf("fra.traineddata")!==-1?f(' +
+                JSON.stringify(urlLangue) + ',o):f(u,o);};})(self.fetch);\n';
+            var scriptWorker = new Blob([redirection, f[2], '\n', f[1]], { type: 'application/javascript' });
+            return chargerScript(f[0]).then(function () {
+                return window.Tesseract.createWorker('fra', 1, {
+                    workerPath: URL.createObjectURL(scriptWorker),
+                    workerBlobURL: false,
+                    corePath: urlMoteur,
+                    langPath: OCR.langue.replace(/\/[^/]+$/, ''),
+                    cacheMethod: 'none',
+                    logger: progressionOCR
+                });
+            });
+        }).catch(function (e) {
+            ocrWorker = null;                          // nouvel essai possible plus tard
+            e.telechargement = true;
+            throw e;
+        });
+        return ocrWorker;
+    }
+
+    function chargerImage(fichier) {
+        function viaBalise() {
+            return new Promise(function (resolve, reject) {
+                var img = new Image();
+                img.onload = function () { resolve(img); };
+                img.onerror = function () { reject(new Error('Photo illisible')); };
+                img.src = URL.createObjectURL(fichier);
+            });
+        }
+        return window.createImageBitmap ? createImageBitmap(fichier).catch(viaBalise) : viaBalise();
+    }
+
+    // Redimensionne, tourne, passe en niveaux de gris et renforce le contraste.
+    function preparerImage(source, rotation) {
+        var w = source.width, h = source.height, cote = Math.max(w, h);
+        var echelle = cote > OCR.tailleMax ? OCR.tailleMax / cote : (cote < 1000 ? 1200 / cote : 1);
+        var lw = Math.round(w * echelle), lh = Math.round(h * echelle), tourne = rotation % 180 !== 0;
+        var canvas = document.createElement('canvas');
+        canvas.width = tourne ? lh : lw;
+        canvas.height = tourne ? lw : lh;
+        var ctx = canvas.getContext('2d');
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate(rotation * Math.PI / 180);
+        ctx.drawImage(source, -lw / 2, -lh / 2, lw, lh);
+
+        var image = ctx.getImageData(0, 0, canvas.width, canvas.height), d = image.data;
+        var total = d.length / 4, histo = new Uint32Array(256), i, g;
+        for (i = 0; i < d.length; i += 4) {
+            g = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) | 0;
+            d[i] = g;
+            histo[g]++;
+        }
+        var bas = 0, haut = 255, cumul = 0;
+        for (g = 0; g < 256; g++) { cumul += histo[g]; if (cumul > total * 0.01) { bas = g; break; } }
+        for (cumul = 0, g = 255; g >= 0; g--) { cumul += histo[g]; if (cumul > total * 0.01) { haut = g; break; } }
+        var ecart = Math.max(1, haut - bas);
+        for (i = 0; i < d.length; i += 4) {
+            g = Math.max(0, Math.min(255, ((d[i] - bas) * 255 / ecart) | 0));
+            d[i] = d[i + 1] = d[i + 2] = g;
+        }
+        ctx.putImageData(image, 0, 0);
+        return canvas;
+    }
+
+    function lireCarte(fichier) {
+        if (etat.ocrEnCours) return;
+        etat.ocrEnCours = true;
+        $('btnPhoto').disabled = true;
+        statutOCR('Préparation de l\'outil de lecture…', '');
+
+        var worker, source, formulaire = etat.formulaireId;
+        function toujoursLeMemeFormulaire() { return formulaire === etat.formulaireId; }
+        function essayer(i) {
+            if (i >= OCR.essais.length) return Promise.resolve({ nir: null, nom: null });
+            var e = OCR.essais[i];
+            return worker.setParameters({ tessedit_pageseg_mode: e.psm }).then(function () {
+                return worker.recognize(preparerImage(source, e.rotation));
+            }).then(function (r) {
+                var resultat = analyserTexteCarte(r.data.text);
+                return resultat.nir ? resultat : essayer(i + 1);
+            });
+        }
+
+        chargerOCR().then(function (w) {
+            worker = w;
+            statutOCR('Lecture de la carte…', '');
+            return chargerImage(fichier);
+        }).then(function (s) {
+            source = s;
+            return essayer(0);
+        }).then(function (r) {
+            if (!toujoursLeMemeFormulaire()) return;   // patient ajouté/annulé pendant la lecture
+            if (!r.nir) {
+                statutOCR('⚠️ Carte non lue. Reprenez la photo à plat, bien éclairée, sans reflet, ou saisissez à la main.', 'ko');
+                return;
+            }
+            $('numSecu').value = r.nir;
+            surSaisieNir();
+            var nomRempli = false;
+            if (r.nom && !$('nomPrenom').value.trim()) { $('nomPrenom').value = r.nom; nomRempli = true; }
+            var message = nomRempli ? '✓ Carte lue. Vérifiez le nom.' :
+                (r.nom ? '✓ N° Sécu lu (nom déjà saisi, non modifié).' : '✓ N° Sécu lu. Nom non lu, saisissez-le.');
+            statutOCR(message + ' Enfant de moins de 16 ans ? La carte est celle du parent : corrigez le nom et cochez l\'âge.', 'ok');
+            majApercu();
+        }).catch(function (e) {
+            if (!toujoursLeMemeFormulaire()) return;
+            statutOCR(e && e.telechargement
+                ? '⚠️ Première utilisation : du réseau est nécessaire pour télécharger l\'outil de lecture (5 Mo). Réessayez avec du réseau.'
+                : '⚠️ Lecture impossible (' + (e && e.message ? e.message : 'erreur') + '). Saisissez à la main.', 'ko');
+        }).then(function () {
+            etat.ocrEnCours = false;
+            $('btnPhoto').disabled = false;
+        });
+    }
+
+    /* =====================================================================
        HORS LIGNE (service worker) + bandeau de mise à jour
        ===================================================================== */
 
@@ -1252,8 +1603,8 @@
             r.addEventListener('change', majApercu);
         });
 
-        $('ageMoins6').addEventListener('change', function () { if (this.checked) $('agePlus80').checked = false; appliquerAge(); });
-        $('agePlus80').addEventListener('change', function () { if (this.checked) $('ageMoins6').checked = false; appliquerAge(); });
+        $('ageMoins6').addEventListener('change', function () { if (this.checked) $('agePlus80').checked = false; etat.ageAuto = null; appliquerAge(); });
+        $('agePlus80').addEventListener('change', function () { if (this.checked) $('ageMoins6').checked = false; etat.ageAuto = null; appliquerAge(); });
 
         $('de').addEventListener('input', majApercu);
         $('ikKm').addEventListener('input', majApercu);
@@ -1269,6 +1620,17 @@
         $('codeOrga').addEventListener('input', function () { this.value = formaterCodeOrga(this.value); });
 
         $('btnAjouter').addEventListener('click', ajouterPatient);
+        $('btnAnnuler').addEventListener('click', annulerModification);
+        $('liveBar').addEventListener('click', function () {
+            $('recap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+
+        $('btnPhoto').addEventListener('click', function () { if (!etat.ocrEnCours) $('photoCarte').click(); });
+        $('photoCarte').addEventListener('change', function () {
+            var fichier = this.files && this.files[0];
+            this.value = '';                      // permet de reprendre la même photo
+            if (fichier) lireCarte(fichier);
+        });
         $('patientList').addEventListener('click', function (e) {
             var bouton = e.target.closest ? e.target.closest('[data-action]') : null;
             if (!bouton) return;
