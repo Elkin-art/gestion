@@ -2,7 +2,14 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="SOS">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon.png">
     <title>Gestion</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -11,247 +18,232 @@
         :root {
             --bg: #0f172a; --bg-card: #1e293b; --bg-input: #334155;
             --accent: #3b82f6; --accent-dark: #2563eb; --success: #10b981;
-            --warning: #f59e0b; --danger: #ef4444; --text: #f8fafc;
-            --text-dim: #94a3b8; --border: #475569;
+            --warning: #f59e0b; --danger: #ef4444; --pink: #f472b6;
+            --text: #f8fafc; --text-dim: #94a3b8; --border: #475569;
         }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 16px; padding-bottom: 100px; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg); color: var(--text); min-height: 100vh;
+            padding: calc(16px + env(safe-area-inset-top)) 16px calc(100px + env(safe-area-inset-bottom));
+        }
         h1 { font-size: 20px; text-align: center; margin-bottom: 8px; }
-        .date { text-align: center; color: var(--text-dim); font-size: 14px; margin-bottom: 20px; }
+
+        /* Date de garde : l'input date transparent recouvre le texte pour ouvrir le sélecteur natif */
+        .date-wrap { position: relative; width: fit-content; margin: 0 auto 20px; }
+        .date { color: var(--text-dim); font-size: 14px; text-decoration: underline; text-align: center; }
+        .date-wrap input[type="date"] {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            opacity: 0; padding: 0; border: 0; font-size: 16px; cursor: pointer;
+        }
+
         .card { background: var(--bg-card); border-radius: 16px; padding: 20px; margin-bottom: 16px; }
         .card h2 { font-size: 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
         .card h2::before { content: ''; width: 4px; height: 18px; background: var(--accent); border-radius: 2px; }
+
         .form-group { margin-bottom: 16px; }
-        .form-group label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
-        input, select { width: 100%; padding: 14px 16px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-size: 16px; -webkit-appearance: none; }
-        input:focus, select:focus { outline: none; border-color: var(--accent); }
+        .form-group > label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+        input, select, textarea {
+            width: 100%; padding: 14px 16px; background: var(--bg-input); border: 1px solid var(--border);
+            border-radius: 10px; color: var(--text); font-size: 16px; font-family: inherit; -webkit-appearance: none; appearance: none;
+        }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+        select {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2394a3b8' stroke-width='2' fill='none'/%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 16px center;
+        }
+        textarea { font-size: 14px; line-height: 1.5; min-height: 200px; resize: vertical; }
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .situation-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-        .situation-grid label { display: flex; align-items: center; justify-content: center; padding: 12px 8px; background: var(--bg-input); border: 2px solid transparent; border-radius: 10px; font-size: 13px; cursor: pointer; transition: all 0.2s; text-transform: none; letter-spacing: 0; }
-        .situation-grid input { display: none; }
-        .situation-grid input:checked + label { border-color: var(--accent); background: rgba(59, 130, 246, 0.2); }
+        .hint { font-size: 12px; color: var(--text-dim); margin-top: 6px; }
+
+        /* N° Sécu */
+        .nir-row { display: grid; grid-template-columns: 1fr 44px 44px; gap: 6px; }
+        .nir-btn { background: var(--bg-input); color: var(--text); border: 1px solid var(--border); border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; }
+        .nir-btn:disabled { opacity: 0.3; cursor: default; }
+        .nir-status { font-size: 12px; margin-top: 6px; min-height: 0; }
+        .nir-status.ok { color: var(--success); }
+        .nir-status.ko { color: var(--warning); }
+        input.ko { border-color: var(--warning); }
+
+        /* Boutons à choix (moment, situation, mode, créneaux) */
+        .choice-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .choice-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+        .choice-grid input { display: none; }
+        .choice-grid label {
+            display: flex; align-items: center; justify-content: center; padding: 12px 8px;
+            background: var(--bg-input); border: 2px solid transparent; border-radius: 10px;
+            font-size: 13px; cursor: pointer; transition: all 0.2s;
+        }
+        .choice-grid input:checked + label { border-color: var(--accent); background: rgba(59, 130, 246, 0.2); }
+        .choice-grid.age input:checked + label { border-color: var(--pink); background: rgba(244, 114, 182, 0.2); }
+
+        /* Cotations */
         .cotation-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-        .cotation-item { position: relative; }
         .cotation-item input { display: none; }
-        .cotation-item label { display: flex; flex-direction: column; align-items: center; padding: 12px 8px; background: var(--bg-input); border: 2px solid transparent; border-radius: 10px; cursor: pointer; transition: all 0.2s; }
+        .cotation-item label {
+            display: flex; flex-direction: column; align-items: center; padding: 12px 8px;
+            background: var(--bg-input); border: 2px solid transparent; border-radius: 10px; cursor: pointer; transition: all 0.2s;
+        }
         .cotation-item label span { font-size: 14px; font-weight: 600; }
         .cotation-item label small { font-size: 11px; color: var(--text-dim); }
         .cotation-item input:checked + label { border-color: var(--success); background: rgba(16, 185, 129, 0.2); }
         .cotation-item.disabled { opacity: 0.4; pointer-events: none; }
-        .paiement-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-        .paiement-grid label { display: flex; align-items: center; justify-content: center; padding: 12px 8px; background: var(--bg-input); border: 2px solid transparent; border-radius: 10px; font-size: 13px; cursor: pointer; transition: all 0.2s; }
+
+        /* Paiement (emoji + libellé) */
+        .paiement-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
         .paiement-grid input { display: none; }
+        .paiement-grid label {
+            display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px 0 8px;
+            background: var(--bg-input); border: 2px solid transparent; border-radius: 10px; font-size: 24px; cursor: pointer; transition: all 0.2s;
+        }
+        .paiement-grid label small { font-size: 10px; color: var(--text-dim); margin-top: 4px; }
         .paiement-grid input:checked + label { border-color: var(--warning); background: rgba(245, 158, 11, 0.2); }
+
         .calc-preview { background: var(--bg); padding: 14px; border-radius: 10px; margin-top: 16px; font-size: 13px; }
-        .calc-row { display: flex; justify-content: space-between; margin-bottom: 6px; }
+        .calc-row { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+        .calc-row span:last-child { text-align: right; }
         .calc-row.total { border-top: 1px solid var(--border); padding-top: 8px; margin-top: 8px; font-weight: 600; font-size: 15px; }
-        .btn { width: 100%; padding: 16px; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
-        .btn-primary { background: var(--accent); color: white; }
-        .btn-primary:active { background: var(--accent-dark); transform: scale(0.98); }
-        .btn-success { background: var(--success); color: white; }
-        .btn-danger { background: var(--danger); color: white; }
+
+        .btn { width: 100%; padding: 16px; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s; color: #fff; }
+        .btn:active { transform: scale(0.98); }
+        .btn-primary { background: var(--accent); }
+        .btn-success { background: var(--success); }
+        .btn-danger { background: var(--danger); }
+
         .patient-list { margin-top: 8px; }
-        .patient-item { background: var(--bg); border-radius: 10px; padding: 14px; margin-bottom: 10px; position: relative; }
-        .patient-item .name { font-weight: 600; margin-bottom: 4px; }
-        .patient-item .details { font-size: 13px; color: var(--text-dim); }
-        .patient-item .notes { font-size: 12px; color: var(--warning); font-style: italic; margin-top: 4px; }
+        .patient-item { background: var(--bg); border-radius: 10px; padding: 14px; padding-right: 80px; margin-bottom: 10px; position: relative; }
+        .patient-item .name { font-weight: 600; margin-bottom: 4px; word-break: break-word; }
+        .patient-item .details { font-size: 13px; color: var(--text-dim); word-break: break-word; }
+        .patient-item .notes { font-size: 12px; color: var(--warning); font-style: italic; margin-top: 4px; word-break: break-word; }
         .patient-item .amounts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; font-size: 12px; }
         .patient-item .amounts span { padding: 4px 8px; border-radius: 6px; }
-        .patient-item .amounts .amo { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
-        .patient-item .amounts .amc { background: rgba(139, 92, 246, 0.2); color: #a78bfa; }
-        .patient-item .amounts .de { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
-        .patient-item .amounts .ik { background: rgba(16, 185, 129, 0.2); color: #34d399; }
-        .patient-item .delete-btn { position: absolute; top: 10px; right: 10px; background: rgba(239, 68, 68, 0.2); border: none; color: var(--danger); width: 28px; height: 28px; border-radius: 8px; cursor: pointer; font-size: 16px; }
-        .patient-item .edit-btn { position: absolute; top: 10px; right: 45px; background: rgba(59, 130, 246, 0.2); border: none; color: #60a5fa; width: 28px; height: 28px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+        .amounts .amo { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+        .amounts .amc { background: rgba(139, 92, 246, 0.2); color: #a78bfa; }
+        .amounts .de { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+        .amounts .ik { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+        .patient-item .icon-btn { position: absolute; top: 10px; width: 28px; height: 28px; border: none; border-radius: 8px; cursor: pointer; }
+        .patient-item .edit-btn { right: 45px; background: rgba(59, 130, 246, 0.2); color: #60a5fa; font-size: 14px; }
+        .patient-item .delete-btn { right: 10px; background: rgba(239, 68, 68, 0.2); color: var(--danger); font-size: 16px; }
+        .empty-state { text-align: center; padding: 30px; color: var(--text-dim); }
+
         .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
         .stat-box { background: var(--bg); padding: 14px; border-radius: 10px; text-align: center; }
         .stat-box .value { font-size: 22px; font-weight: 700; }
         .stat-box .label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; }
-        .stat-box.secu .value { color: #60a5fa; }
-        .stat-box.encaisse .value { color: #34d399; }
-        .actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 16px; }
-        .empty-state { text-align: center; padding: 30px; color: var(--text-dim); }
-        .hidden { display: none !important; }
         .heures-total { margin-top: 10px; font-size: 14px; color: var(--text-dim); }
-        .age-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        .age-item input { display: none; }
-        .age-item label { display: flex; align-items: center; justify-content: center; padding: 12px 8px; background: var(--bg-input); border: 2px solid transparent; border-radius: 10px; font-size: 13px; cursor: pointer; transition: all 0.2s; }
-        .age-item input:checked + label { border-color: #f472b6; background: rgba(244, 114, 182, 0.2); }
+        .actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 16px; }
+        .link-btn { display: block; width: 100%; margin-top: 14px; background: none; border: none; color: #60a5fa; font-size: 14px; text-decoration: underline; cursor: pointer; }
+
+        .footer { text-align: center; color: var(--text-dim); font-size: 11px; opacity: 0.6; }
+        .update-banner {
+            position: fixed; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom));
+            background: var(--accent); color: #fff; border: none; border-radius: 12px; padding: 14px;
+            font-size: 14px; font-weight: 600; box-shadow: 0 6px 20px rgba(0,0,0,0.4); cursor: pointer;
+        }
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
     <h1>🚑 Gestion</h1>
-    <div class="date" id="currentDate" style="cursor: pointer; text-decoration: underline;"></div>
-    <input type="date" id="dateInput" style="position: absolute; left: -9999px;">
+    <div class="date-wrap">
+        <div class="date" id="currentDate"></div>
+        <input type="date" id="dateInput" aria-label="Changer la date de garde">
+    </div>
 
+    <!-- ===== Nouveau patient ===== -->
     <div class="card">
         <h2>Nouveau Patient</h2>
-        
+
         <div class="form-group">
-            <label>Nom Prénom</label>
+            <label for="nomPrenom">Nom Prénom</label>
             <input type="text" id="nomPrenom" placeholder="Nom Prénom" autocomplete="off">
         </div>
 
         <div class="form-group">
-            <label>N° Sécu</label>
-            <input type="text" id="numSecu" placeholder="2 02 05 13 155 268 45" inputmode="numeric" maxlength="21">
+            <label for="numSecu">N° Sécu</label>
+            <div class="nir-row">
+                <input type="text" id="numSecu" placeholder="2 02 05 13 155 268 45" inputmode="numeric" autocomplete="off">
+                <button type="button" class="nir-btn" data-lettre="A" disabled aria-label="Corse-du-Sud 2A">A</button>
+                <button type="button" class="nir-btn" data-lettre="B" disabled aria-label="Haute-Corse 2B">B</button>
+            </div>
+            <div class="nir-status" id="nirStatus"></div>
         </div>
+
         <div class="form-group">
-            <label>Code Orga</label>
-            <input type="text" id="codeOrga" placeholder="01 131 0341" inputmode="numeric" maxlength="13">
+            <label for="codeOrga">Code Orga</label>
+            <input type="text" id="codeOrga" placeholder="01 131 0341" inputmode="numeric" autocomplete="off">
         </div>
 
         <div class="form-group">
             <label>Moment</label>
-            <div class="situation-grid">
-                <input type="radio" name="moment" id="momentJour" value="jour" checked>
-                <label for="momentJour">Jour</label>
-                <input type="radio" name="moment" id="momentNuit" value="nuit">
-                <label for="momentNuit">Nuit</label>
-                <input type="radio" name="moment" id="momentFerie" value="ferie">
-                <label for="momentFerie">Férié</label>
+            <div class="choice-grid" id="momentGrid">
+                <input type="radio" name="moment" id="momentJour" value="jour" checked><label for="momentJour">Jour</label>
+                <input type="radio" name="moment" id="momentNuit" value="nuit"><label for="momentNuit">Nuit</label>
+                <input type="radio" name="moment" id="momentFerie" value="ferie"><label for="momentFerie">Férié</label>
             </div>
+            <div class="hint" id="momentHint"></div>
         </div>
 
         <div class="form-group">
             <label>Situation</label>
-            <div class="situation-grid">
-                <input type="radio" name="situation" id="sitNormale" value="normale" checked>
-                <label for="sitNormale">Normale</label>
-                <input type="radio" name="situation" id="sitALD" value="ald">
-                <label for="sitALD">ALD</label>
-                <input type="radio" name="situation" id="sitInvalidite" value="invalidite">
-                <label for="sitInvalidite">Invalidité</label>
-                <input type="radio" name="situation" id="sitAME" value="ame">
-                <label for="sitAME">AME</label>
-                <input type="radio" name="situation" id="sitC2S" value="c2s">
-                <label for="sitC2S">C2S</label>
+            <div class="choice-grid" id="situationGrid">
+                <input type="radio" name="situation" id="sitNormale" value="normale" checked><label for="sitNormale">Normale</label>
+                <input type="radio" name="situation" id="sitALD" value="ald"><label for="sitALD">ALD</label>
+                <input type="radio" name="situation" id="sitInvalidite" value="invalidite"><label for="sitInvalidite">Invalidité</label>
+                <input type="radio" name="situation" id="sitAME" value="ame"><label for="sitAME">AME</label>
+                <input type="radio" name="situation" id="sitC2S" value="c2s"><label for="sitC2S">C2S</label>
             </div>
         </div>
 
         <div class="form-group">
             <label>Âge</label>
-            <div class="age-grid">
-                <div class="age-item">
-                    <input type="checkbox" id="ageMoins6">
-                    <label for="ageMoins6">&lt; 6 ans</label>
-                </div>
-                <div class="age-item">
-                    <input type="checkbox" id="agePlus80">
-                    <label for="agePlus80">&gt; 80 ans</label>
-                </div>
+            <div class="choice-grid cols-2 age">
+                <input type="checkbox" id="ageMoins6"><label for="ageMoins6">&lt; 6 ans</label>
+                <input type="checkbox" id="agePlus80"><label for="agePlus80">≥ 80 ans</label>
             </div>
         </div>
 
         <div class="form-group" id="tpChoiceGroup">
             <label>Mode de règlement</label>
-            <div class="situation-grid" style="grid-template-columns: 1fr 1fr;">
-                <input type="radio" name="tpChoice" id="tpChoiceTout" value="tout">
-                <label for="tpChoiceTout">Tout</label>
-                <input type="radio" name="tpChoice" id="tpChoiceTP" value="tp" checked>
-                <label for="tpChoiceTP">TP</label>
+            <div class="choice-grid cols-2">
+                <input type="radio" name="tpChoice" id="tpChoiceTout" value="tout"><label for="tpChoiceTout">Tout</label>
+                <input type="radio" name="tpChoice" id="tpChoiceTP" value="tp" checked><label for="tpChoiceTP">TP</label>
             </div>
         </div>
 
         <div class="form-group">
             <label>Cotations</label>
-            <div class="cotation-grid">
-                <div class="cotation-item" id="itemVG">
-                    <input type="checkbox" id="cotVG" checked>
-                    <label for="cotVG"><span>VG</span><small>30€</small></label>
-                </div>
-                <div class="cotation-item" id="itemG">
-                    <input type="checkbox" id="cotG">
-                    <label for="cotG"><span>G</span><small>30€</small></label>
-                </div>
-                <div></div>
-                <div class="cotation-item" id="itemMD">
-                    <input type="checkbox" id="cotMD" checked>
-                    <label for="cotMD"><span>MD</span><small>10€</small></label>
-                </div>
-                <div class="cotation-item" id="itemVRD">
-                    <input type="checkbox" id="cotVRD">
-                    <label for="cotVRD"><span>VRD</span><small>36,50€</small></label>
-                </div>
-                <div class="cotation-item" id="itemVRN">
-                    <input type="checkbox" id="cotVRN">
-                    <label for="cotVRN"><span>VRN</span><small>52,50€</small></label>
-                </div>
-                <div class="cotation-item" id="itemCRD">
-                    <input type="checkbox" id="cotCRD">
-                    <label for="cotCRD"><span>CRD</span><small>26,50€</small></label>
-                </div>
-                <div class="cotation-item" id="itemCRN">
-                    <input type="checkbox" id="cotCRN">
-                    <label for="cotCRN"><span>CRN</span><small>42,50€</small></label>
-                </div>
-                <div></div>
-                <div class="cotation-item" id="itemMVR">
-                    <input type="checkbox" id="cotMVR" checked>
-                    <label for="cotMVR"><span>MVR</span><small>10€</small></label>
-                </div>
-                <div class="cotation-item" id="itemSNP">
-                    <input type="checkbox" id="cotSNP" checked>
-                    <label for="cotSNP"><span>SNP</span><small>15€</small></label>
-                </div>
-                <div></div>
-                <div class="cotation-item" id="itemMEG">
-                    <input type="checkbox" id="cotMEG">
-                    <label for="cotMEG"><span>MEG</span><small>5€</small></label>
-                </div>
-                <div class="cotation-item" id="itemMOP">
-                    <input type="checkbox" id="cotMOP">
-                    <label for="cotMOP"><span>MOP</span><small>5€</small></label>
-                </div>
-                <div></div>
-                <div class="cotation-item" id="itemIMP">
-                    <input type="checkbox" id="cotIMP">
-                    <label for="cotIMP"><span>IMP</span><small>60€</small></label>
-                </div>
-                <div class="cotation-item" id="itemGAV">
-                    <input type="checkbox" id="cotGAV">
-                    <label for="cotGAV"><span>GAV</span><small>60€</small></label>
-                </div>
-                <div class="cotation-item" id="itemHDT">
-                    <input type="checkbox" id="cotHDT">
-                    <label for="cotHDT"><span>HDT</span><small>80€</small></label>
-                </div>
-            </div>
+            <div class="cotation-grid" id="cotationGrid"></div>
         </div>
 
         <div class="form-row">
             <div class="form-group" id="deGroup">
-                <label>DE (€)</label>
-                <input type="number" id="de" placeholder="0" inputmode="decimal" step="0.01" value="0">
+                <label for="de">DE (€)</label>
+                <input type="text" id="de" placeholder="0" inputmode="decimal" autocomplete="off">
             </div>
             <div class="form-group">
-                <label>IK (km)</label>
-                <input type="number" id="ikKm" placeholder="0" inputmode="decimal" step="0.1" value="0">
+                <label for="ikKm">IK (km)</label>
+                <input type="text" id="ikKm" placeholder="0" inputmode="decimal" autocomplete="off">
             </div>
         </div>
 
         <div class="form-group">
-            <label>Notes</label>
-            <input type="text" id="notes" placeholder="Commentaire (optionnel)">
+            <label for="notes">Notes</label>
+            <input type="text" id="notes" placeholder="Commentaire (optionnel)" autocomplete="off">
         </div>
 
         <div class="form-group" id="paiementGroup">
             <label>Paiement Patient</label>
             <div class="paiement-grid">
-                <input type="radio" name="paiement" id="paieCB" value="cb" checked>
-                <label for="paieCB">CB</label>
-                <input type="radio" name="paiement" id="paieCheque" value="cheque">
-                <label for="paieCheque">Chèque</label>
-                <input type="radio" name="paiement" id="paieLiquide" value="liquide">
-                <label for="paieLiquide">Liquide</label>
-                <input type="radio" name="paiement" id="paieVirement" value="virement">
-                <label for="paieVirement">Virement</label>
-                <input type="radio" name="paiement" id="paieAucun" value="aucun">
-                <label for="paieAucun">Aucun</label>
+                <input type="radio" name="paiement" id="paieCB" value="cb" checked><label for="paieCB">💳<small>CB</small></label>
+                <input type="radio" name="paiement" id="paieCheque" value="cheque"><label for="paieCheque">📝<small>Chèque</small></label>
+                <input type="radio" name="paiement" id="paieLiquide" value="liquide"><label for="paieLiquide">💶<small>Liquide</small></label>
+                <input type="radio" name="paiement" id="paieVirement" value="virement"><label for="paieVirement">🏦<small>Virement</small></label>
+                <input type="radio" name="paiement" id="paieAucun" value="aucun"><label for="paieAucun">🚫<small>Aucun</small></label>
             </div>
         </div>
 
-        <div class="calc-preview" id="calcPreview">
-            <div class="calc-row"><span>Cotation</span><span id="prevCotation">VG+MVR+SNP</span></div>
+        <div class="calc-preview">
+            <div class="calc-row"><span>Cotation</span><span id="prevCotation">-</span></div>
             <div class="calc-row"><span>AMO (70%)</span><span id="prevAMO">0,00 €</span></div>
             <div class="calc-row"><span>AMC (30%)</span><span id="prevAMC">0,00 €</span></div>
             <div class="calc-row total"><span>Total</span><span id="prevTotal">0,00 €</span></div>
@@ -259,405 +251,683 @@
             <div class="calc-row" style="color: #60a5fa;"><span>Tiers Payant Sécu</span><span id="prevSecu">0,00 €</span></div>
         </div>
 
-        <button class="btn btn-primary" style="margin-top: 16px;" id="btnAjouter">Ajouter Patient</button>
+        <button type="button" class="btn btn-primary" style="margin-top: 16px;" id="btnAjouter">Ajouter Patient</button>
     </div>
 
+    <!-- ===== Liste des patients ===== -->
     <div class="card">
         <h2>Patients (<span id="patientCount">0</span>)</h2>
-        <div id="patientList" class="patient-list">
-            <div class="empty-state">Aucun patient</div>
-        </div>
+        <div id="patientList" class="patient-list"></div>
     </div>
 
+    <!-- ===== Récapitulatif ===== -->
     <div class="card">
         <h2>Récapitulatif</h2>
-        
         <div class="form-group">
             <label>Créneaux travaillés (<span id="jourType">Semaine</span>)</label>
-            <div id="creneauxSemaine" class="situation-grid" style="grid-template-columns: 1fr 1fr 1fr;">
-                <input type="checkbox" id="cren1" checked>
-                <label for="cren1">8h-12h</label>
-                <input type="checkbox" id="cren2">
-                <label for="cren2">12h-16h</label>
-                <input type="checkbox" id="cren3">
-                <label for="cren3">16h-20h</label>
-            </div>
-            <div id="creneauxWeekend" class="situation-grid hidden" style="grid-template-columns: 1fr 1fr;">
-                <input type="checkbox" id="crenWE1" checked>
-                <label for="crenWE1">8h-14h</label>
-                <input type="checkbox" id="crenWE2">
-                <label for="crenWE2">14h-20h</label>
-            </div>
-            <div class="heures-total">Total : <strong id="totalHeures">4</strong> heures</div>
+            <div class="choice-grid" id="creneauxSemaine"></div>
+            <div class="choice-grid cols-2 hidden" id="creneauxWeekend"></div>
+            <div class="heures-total">Total : <strong id="totalHeures">0</strong> heures</div>
         </div>
 
         <div class="stats-grid">
-            <div class="stat-box secu">
-                <div class="value" id="totalSecu">0,00 €</div>
+            <div class="stat-box">
+                <div class="value" style="color: #60a5fa;" id="totalSecu">0,00 €</div>
                 <div class="label">Tiers Payant Sécu</div>
             </div>
-            <div class="stat-box encaisse">
-                <div class="value" id="totalEncaisse">0,00 €</div>
+            <div class="stat-box">
+                <div class="value" style="color: #34d399;" id="totalEncaisse">0,00 €</div>
                 <div class="label">Encaissé</div>
             </div>
         </div>
         <div class="stats-grid" style="margin-top: 12px;">
-            <div class="stat-box" style="background: var(--bg);">
+            <div class="stat-box">
                 <div class="value" style="color: var(--warning);" id="totalCA">0,00 €</div>
                 <div class="label">Total CA</div>
             </div>
-            <div class="stat-box" style="background: var(--bg);">
-                <div class="value" style="color: #f472b6;" id="caHeure">0,00 €/h</div>
+            <div class="stat-box">
+                <div class="value" style="color: var(--pink);" id="caHeure">0,00 €/h</div>
                 <div class="label">CA / Heure</div>
             </div>
         </div>
         <div class="actions">
-            <button class="btn btn-danger" id="btnReinit">Réinit</button>
-            <button class="btn btn-success" id="btnPDF">PDF</button>
-            <button class="btn btn-primary" id="btnPartager">Partager</button>
+            <button type="button" class="btn btn-danger" id="btnReinit">Réinit</button>
+            <button type="button" class="btn btn-success" id="btnPDF">PDF</button>
+            <button type="button" class="btn btn-primary" id="btnPartager">Partager</button>
+        </div>
+        <button type="button" class="link-btn hidden" id="btnRestaurer"></button>
+    </div>
+
+    <!-- ===== Examens types (outil indépendant des patients) ===== -->
+    <div class="card">
+        <h2>📋 Examens types</h2>
+        <div class="form-group">
+            <label for="patho">Pathologie</label>
+            <select id="patho"></select>
+        </div>
+        <div class="form-group hidden" id="examGroup">
+            <label for="exam">Examen clinique (modifiable)</label>
+            <textarea id="exam"></textarea>
+            <button type="button" class="btn btn-success" style="margin-top: 10px;" id="btnCopier">📋 Copier</button>
         </div>
     </div>
 
+    <div class="footer" id="appVersion"></div>
+    <button type="button" class="update-banner hidden" id="updateBanner">Nouvelle version disponible — toucher pour recharger</button>
+
     <script>
-        var TARIFS = { VG: 30, G: 30, MD: 10, VRD: 36.50, VRN: 52.50, CRD: 26.50, CRN: 42.50, MVR: 10, SNP: 15, MEG: 5, MOP: 5, IMP: 60, GAV: 60, HDT: 80 };
-        var IK_TAUX = 0.61;
+    'use strict';
 
-        var patients = [];
-        var editingId = null;
-        var dateGarde = null;
+    /* =====================================================================
+       CONFIGURATION — tout ce qui concerne les tarifs et les règles est ici
+       ===================================================================== */
+
+    var APP_VERSION = '2.0';
+    var IK_TAUX = 0.61;
+
+    var TARIFS = {
+        VG: 30, G: 30, MD: 10, VRD: 36.50, VRN: 52.50, CRD: 26.50, CRN: 42.50,
+        MVR: 10, SNP: 15, MEG: 5, MOP: 5, IMP: 60, GAV: 60, HDT: 80
+    };
+
+    // Disposition de la grille (null = case vide). L'ordre définit aussi l'ordre dans la cotation.
+    var GRILLE = [
+        ['VG',  'G',   null ],
+        ['MD',  'VRD', 'VRN'],
+        ['CRD', 'CRN', null ],
+        ['MVR', 'SNP', null ],
+        ['MEG', 'MOP', null ],
+        ['IMP', 'GAV', 'HDT']
+    ];
+
+    var ACTES = ['VG', 'G', 'IMP', 'GAV', 'HDT'];   // un seul acte principal à la fois
+    var ACTES_SPECIAUX = ['IMP', 'GAV', 'HDT'];     // facturés seuls, sans majoration
+
+    var AGE_MEG_MAX = 6;    // MEG si âge < 6 ans
+    var AGE_MOP_MIN = 80;   // MOP si âge >= 80 ans
+
+    var CRENEAUX = {
+        semaine: [
+            { id: 'cren1', label: '8h-12h', heures: 4, defaut: true },
+            { id: 'cren2', label: '12h-16h', heures: 4 },
+            { id: 'cren3', label: '16h-20h', heures: 4 }
+        ],
+        weekend: [
+            { id: 'crenWE1', label: '8h-14h', heures: 6, defaut: true },
+            { id: 'crenWE2', label: '14h-20h', heures: 6 }
+        ]
+    };
+
+    var LIBELLES = {
+        moment: { jour: 'Jour', nuit: 'Nuit', ferie: 'Férié' },
+        situation: { normale: 'Normale', ald: 'ALD', invalidite: 'Invalidité', ame: 'AME', c2s: 'C2S' },
+        paiementPDF: { cb: 'CB', cheque: 'CHEQUE', liquide: 'LIQUIDE', virement: 'VIREMENT', aucun: 'AUCUN' }
+    };
+
+    // Canevas d'examens (contenu provisoire, à remplacer par les textes Notion)
+    var EXAMENS = [
+        { id: 'angine', label: 'Angine', texte: "Patient conscient, orienté, bon état général.\nT° : __ °C  FC : __ bpm  TA : __/__  SpO2 : __ %\nORL : amygdales érythémateuses, hypertrophiées, sans exsudat.\nPas de trismus, pas de bombement du voile.\nAdénopathies cervicales sensibles.\nTDR strepto : négatif.\nAuscultation pulmonaire libre." },
+        { id: 'otite', label: 'Otite', texte: "Patient conscient, bon état général.\nT° : __ °C  FC : __ bpm\nOtoscopie : tympan droit/gauche congestif, bombant.\nTympan controlatéral normal.\nPas de mastoïdite, pas de raideur méningée.\nRhinopharynx inflammatoire." },
+        { id: 'gastro', label: 'Gastro-entérite', texte: "Patient conscient, bon état général.\nT° : __ °C  FC : __ bpm  TA : __/__\nPas de signe de déshydratation (pli cutané absent, muqueuses humides).\nAbdomen souple, dépressible, sensible en péri-ombilical, sans défense.\nBruits hydro-aériques présents.\nPas de signe de gravité." },
+        { id: 'cystite', label: 'Cystite', texte: "Patiente consciente, bon état général, apyrétique.\nT° : __ °C\nBU : leucocytes +, nitrites +.\nAbdomen souple, sensibilité sus-pubienne.\nFosses lombaires libres, Giordano négatif." },
+        { id: 'lombalgie', label: 'Lombalgie', texte: "Patient conscient, bon état général, apyrétique.\nContracture paravertébrale lombaire.\nLasègue négatif bilatéral.\nPas de déficit sensitivo-moteur, ROT présents et symétriques.\nPas de trouble sphinctérien." }
+    ];
+
+    var STORE = { patients: 'sosPatients', date: 'sosDateGarde', creneaux: 'sosCreneaux', sauvegarde: 'sosSauvegarde' };
+
+    var CODES = [];
+    GRILLE.forEach(function (ligne) { ligne.forEach(function (c) { if (c) CODES.push(c); }); });
+
+    /* =====================================================================
+       OUTILS
+       ===================================================================== */
+
+    function $(id) { return document.getElementById(id); }
+    function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
+    function pad2(n) { return (n < 10 ? '0' : '') + n; }
+    function contient(liste, x) { return liste.indexOf(x) !== -1; }
+
+    function formatMontant(n) { return round2(n).toFixed(2).replace('.', ',') + ' €'; }
+    function formatNombre(n) { return String(round2(n)).replace('.', ','); }
+    function formatTarif(n) { return (n % 1 === 0 ? String(n) : n.toFixed(2).replace('.', ',')) + '€'; }
+
+    function echapper(texte) {
+        return String(texte).replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+    }
+
+    // Accepte "10,5" et "10.5". Toute saisie invalide vaut 0 (jamais un montant inventé).
+    function lireNombre(valeur) {
+        var s = String(valeur || '').trim().replace(',', '.');
+        if (s === '' || !/^(\d+(\.\d*)?|\.\d+)$/.test(s)) return 0;
+        return parseFloat(s);
+    }
+
+    function stockLire(cle, defaut) {
         try {
-            patients = JSON.parse(localStorage.getItem('sosPatients') || '[]');
-            var savedDate = localStorage.getItem('sosDateGarde');
-            if (savedDate) dateGarde = new Date(savedDate);
-        } catch(e) { patients = []; }
+            var v = localStorage.getItem(cle);
+            return v === null ? defaut : JSON.parse(v);
+        } catch (e) { return defaut; }
+    }
+    function stockEcrire(cle, valeur) { try { localStorage.setItem(cle, JSON.stringify(valeur)); } catch (e) { /* stockage indisponible */ } }
+    function stockSupprimer(cle) { try { localStorage.removeItem(cle); } catch (e) { /* stockage indisponible */ } }
 
-        var today = new Date();
-        var displayDate = dateGarde || today;
-        document.getElementById('currentDate').textContent = displayDate.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    /* =====================================================================
+       DATES, JOURS FÉRIÉS, MOMENT
+       ===================================================================== */
 
-        function detectMoment() {
-            var h = today.getHours();
-            if (h >= 20 || h < 8) {
-                document.getElementById('momentNuit').checked = true;
+    function dateLocaleISO(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+    function dateCourte(d) { return pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + '/' + d.getFullYear(); }
+    function dateLongue(d) { return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }); }
+    function memeJour(a, b) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
+
+    function lireDateStockee(valeur) {
+        if (!valeur) return null;
+        var d = new Date(valeur);
+        return isNaN(d.getTime()) ? null : d;
+    }
+
+    // Dimanche de Pâques (algorithme de Meeus / Jones / Butcher)
+    function paques(annee) {
+        var a = annee % 19, b = Math.floor(annee / 100), c = annee % 100;
+        var d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3);
+        var h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4;
+        var l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+        var mois = Math.floor((h + l - 7 * m + 114) / 31), jour = ((h + l - 7 * m + 114) % 31) + 1;
+        return new Date(annee, mois - 1, jour);
+    }
+
+    function nomJourFerie(d) {
+        var fixes = {
+            '1-1': 'Jour de l\'an', '5-1': '1er mai', '5-8': '8 mai', '7-14': '14 juillet',
+            '8-15': '15 août', '11-1': 'Toussaint', '11-11': '11 novembre', '12-25': 'Noël'
+        };
+        var cle = (d.getMonth() + 1) + '-' + d.getDate();
+        if (fixes[cle]) return fixes[cle];
+        var p = paques(d.getFullYear());
+        var mobiles = [[1, 'Lundi de Pâques'], [39, 'Ascension'], [50, 'Lundi de Pentecôte']];
+        for (var i = 0; i < mobiles.length; i++) {
+            if (memeJour(d, new Date(p.getFullYear(), p.getMonth(), p.getDate() + mobiles[i][0]))) return mobiles[i][1];
+        }
+        return null;
+    }
+
+    function estWeekendOuFerie(d) { return d.getDay() === 0 || d.getDay() === 6 || nomJourFerie(d) !== null; }
+
+    // Nuit 20h-8h prioritaire ; Férié = samedi 12h-20h, dimanche et jours fériés 8h-20h ; sinon Jour.
+    function detecterMoment(d) {
+        var h = d.getHours(), heure = pad2(h) + 'h' + pad2(d.getMinutes());
+        if (h >= 20 || h < 8) return { moment: 'nuit', raison: heure };
+        var ferie = nomJourFerie(d);
+        if (ferie) return { moment: 'ferie', raison: ferie + ', ' + heure };
+        if (d.getDay() === 0) return { moment: 'ferie', raison: 'dimanche, ' + heure };
+        if (d.getDay() === 6 && h >= 12) return { moment: 'ferie', raison: 'samedi après-midi, ' + heure };
+        return { moment: 'jour', raison: heure };
+    }
+
+    /* =====================================================================
+       N° SÉCU : nettoyage, format, Corse, clé, âge
+       ===================================================================== */
+
+    // Chiffres uniquement, sauf A/B autorisés en 7e position après un « 2 » (2A / 2B)
+    function nettoyerNir(valeur) {
+        var brut = String(valeur || '').toUpperCase(), sortie = '';
+        for (var i = 0; i < brut.length && sortie.length < 15; i++) {
+            var c = brut.charAt(i);
+            if (c >= '0' && c <= '9') sortie += c;
+            else if ((c === 'A' || c === 'B') && sortie.length === 6 && sortie.charAt(5) === '2') sortie += c;
+        }
+        return sortie;
+    }
+
+    function formaterNir(n) {
+        var tailles = [1, 2, 2, 2, 3, 3, 2], blocs = [], pos = 0;
+        for (var i = 0; i < tailles.length && pos < n.length; i++) {
+            blocs.push(n.substr(pos, tailles[i]));
+            pos += tailles[i];
+        }
+        return blocs.join(' ');
+    }
+
+    // true = clé correcte, false = faute probable, null = numéro incomplet
+    function cleNirValide(n) {
+        if (n.length !== 15) return null;
+        var corps = n.substring(0, 13).replace('2A', '19').replace('2B', '18');
+        var cle = n.substring(13);
+        if (!/^\d{13}$/.test(corps) || !/^\d{2}$/.test(cle)) return false;
+        return 97 - (parseInt(corps, 10) % 97) === parseInt(cle, 10);
+    }
+
+    // Âge au mois près (le N° Sécu ne contient pas le jour de naissance)
+    function ageDepuisNir(n, reference) {
+        if (n.length < 5 || !/^\d{4}$/.test(n.substring(1, 5))) return null;
+        var aa = parseInt(n.substring(1, 3), 10), mm = parseInt(n.substring(3, 5), 10);
+        var annee = reference.getFullYear();
+        var naissance = (2000 + aa <= annee) ? 2000 + aa : 1900 + aa;
+        var age = annee - naissance;
+        if (mm >= 1 && mm <= 12 && reference.getMonth() + 1 < mm) age--;   // mois 20-42 / 99 : mois inconnu
+        return age;
+    }
+
+    function formaterCodeOrga(valeur) {
+        var v = String(valeur || '').replace(/\D/g, '').substring(0, 9);
+        var out = v.substring(0, 2);
+        if (v.length > 2) out += ' ' + v.substring(2, 5);
+        if (v.length > 5) out += ' ' + v.substring(5);
+        return out;
+    }
+
+    /* =====================================================================
+       CALCUL — une seule fonction pour l'aperçu et l'enregistrement
+       ===================================================================== */
+
+    function calculer(saisie) {
+        var totalActes = round2(saisie.codes.reduce(function (s, c) { return s + TARIFS[c]; }, 0));
+        var normale = saisie.situation === 'normale';
+        var de = normale ? saisie.de : 0;
+        var ik = round2(saisie.ikKm * IK_TAUX);
+        var r = { totalActes: totalActes, de: de, ik: ik };
+
+        if (normale) {
+            r.amo = round2(totalActes * 0.7);
+            r.amc = round2(totalActes - r.amo);          // AMO + AMC = total, au centime près
+            if (saisie.tpChoice === 'tout') {
+                r.patientPaye = round2(totalActes + de + ik);
+                r.tiersPayantSecu = 0;
             } else {
-                document.getElementById('momentJour').checked = true;
+                r.patientPaye = round2(r.amc + de);
+                r.tiersPayantSecu = round2(r.amo + ik);
             }
-            updateCotationsAuto();
+        } else {
+            r.amo = totalActes;
+            r.amc = 0;
+            r.patientPaye = 0;
+            r.tiersPayantSecu = round2(totalActes + ik);
+        }
+        r.total = round2(totalActes + de + ik);
+        return r;
+    }
+
+    function libelleCotation(codes, de, ikKm) {
+        var s = codes.join('+');
+        if (de > 0) s += '+DE' + formatNombre(de) + '€';
+        if (ikKm > 0) s += '+IK' + formatNombre(ikKm) + 'km';
+        return s;
+    }
+
+    /* =====================================================================
+       ÉTAT
+       ===================================================================== */
+
+    function creneauxParDefaut() {
+        var c = {};
+        ['semaine', 'weekend'].forEach(function (t) {
+            CRENEAUX[t].forEach(function (cr) { c[cr.id] = !!cr.defaut; });
+        });
+        return c;
+    }
+
+    var etat = {
+        patients: [],
+        dateGarde: null,
+        creneaux: creneauxParDefaut(),
+        editionId: null,
+        momentMode: 'auto',          // 'auto' | 'manuel' | 'patient'
+        situationPrecedente: 'normale',
+        dernierePartieAge: ''        // évite de re-détecter l'âge à chaque chiffre tapé
+    };
+
+    function chargerEtat() {
+        var p = stockLire(STORE.patients, []);
+        etat.patients = Array.isArray(p) ? p : [];
+        try { etat.dateGarde = lireDateStockee(localStorage.getItem(STORE.date)); } catch (e) { etat.dateGarde = null; }
+        var c = stockLire(STORE.creneaux, null);
+        if (c && typeof c === 'object') {
+            Object.keys(etat.creneaux).forEach(function (id) { if (typeof c[id] === 'boolean') etat.creneaux[id] = c[id]; });
+        }
+    }
+
+    function sauverPatients() { stockEcrire(STORE.patients, etat.patients); }
+    function sauverCreneaux() { stockEcrire(STORE.creneaux, etat.creneaux); }
+    function sauverDate() {
+        try {
+            if (etat.dateGarde) localStorage.setItem(STORE.date, etat.dateGarde.toISOString());
+            else localStorage.removeItem(STORE.date);
+        } catch (e) { /* stockage indisponible */ }
+    }
+
+    function dateDeGarde() { return etat.dateGarde || new Date(); }
+
+    /* =====================================================================
+       LECTURE DU FORMULAIRE
+       ===================================================================== */
+
+    function valeurRadio(nom) {
+        var el = document.querySelector('input[name="' + nom + '"]:checked');
+        return el ? el.value : null;
+    }
+    function cocherRadio(nom, valeur) {
+        var el = document.querySelector('input[name="' + nom + '"][value="' + valeur + '"]');
+        if (el) el.checked = true;
+    }
+    function caseCotation(code) { return $('cot' + code); }
+    function cocher(code, valeur) { caseCotation(code).checked = !!valeur; }
+    function codesCoches() { return CODES.filter(function (c) { return caseCotation(c).checked; }); }
+    function acteCourant() {
+        for (var i = 0; i < ACTES.length; i++) if (caseCotation(ACTES[i]).checked) return ACTES[i];
+        return null;
+    }
+    function ageCourant() {
+        if ($('ageMoins6').checked) return 'moins6';
+        if ($('agePlus80').checked) return 'plus80';
+        return null;
+    }
+
+    function lireFormulaire() {
+        var situation = valeurRadio('situation');
+        var normale = situation === 'normale';
+        return {
+            nomPrenom: $('nomPrenom').value.trim(),
+            numSecu: formaterNir(nettoyerNir($('numSecu').value)),
+            codeOrga: $('codeOrga').value.trim(),
+            notes: $('notes').value.trim(),
+            moment: valeurRadio('moment'),
+            situation: situation,
+            tpChoice: normale ? valeurRadio('tpChoice') : 'tp',
+            paiement: normale ? valeurRadio('paiement') : 'aucun',
+            codes: codesCoches(),
+            de: normale ? lireNombre($('de').value) : 0,
+            ikKm: lireNombre($('ikKm').value),
+            ageMoins6: $('ageMoins6').checked,
+            agePlus80: $('agePlus80').checked
+        };
+    }
+
+    /* =====================================================================
+       RÈGLES DE COTATION
+       ===================================================================== */
+
+    // Recoche toutes les cotations selon l'acte, le moment et l'âge.
+    function appliquerCotationsParDefaut() {
+        var acte = acteCourant(), moment = valeurRadio('moment'), age = ageCourant();
+        var jour = moment === 'jour', nuit = moment === 'nuit', ferie = moment === 'ferie';
+        var consultation = acte === 'VG' || acte === 'G';
+        var attendu = {};
+
+        if (acte) attendu[acte] = true;
+        if (acte === 'VG') {
+            attendu.MD = jour; attendu.MVR = jour; attendu.SNP = jour;
+            attendu.VRN = nuit; attendu.VRD = ferie;
+        } else if (acte === 'G') {
+            attendu.CRN = nuit; attendu.CRD = ferie;
+        }
+        if (consultation) {
+            attendu.MEG = age === 'moins6';
+            attendu.MOP = age === 'plus80';
+        }
+        CODES.forEach(function (c) { cocher(c, attendu[c]); });
+        majVerrouMD();
+        majApercu();
+    }
+
+    // Ne touche qu'à MEG / MOP (préserve les autres choix manuels).
+    function appliquerAge() {
+        var acte = acteCourant(), age = ageCourant();
+        var consultation = acte === 'VG' || acte === 'G';
+        cocher('MEG', consultation && age === 'moins6');
+        cocher('MOP', consultation && age === 'plus80');
+        majApercu();
+    }
+
+    // MD ne se cumule pas avec les majorations de garde : bloqué la nuit et en férié.
+    function majVerrouMD() {
+        var bloque = valeurRadio('moment') !== 'jour';
+        $('itemMD').classList.toggle('disabled', bloque);
+        if (bloque) cocher('MD', false);
+    }
+
+    function choisirActe(code, coche) {
+        var nouveau = coche ? code : (contient(ACTES_SPECIAUX, code) ? 'VG' : null);
+        ACTES.forEach(function (a) { cocher(a, a === nouveau); });
+        appliquerCotationsParDefaut();
+    }
+
+    /* =====================================================================
+       MOMENT : détection automatique + indicateur
+       ===================================================================== */
+
+    function afficherIndicateurMoment(texte) { $('momentHint').textContent = texte; }
+
+    function momentAutomatique() {
+        var r = detecterMoment(new Date());
+        etat.momentMode = 'auto';
+        cocherRadio('moment', r.moment);
+        afficherIndicateurMoment('Auto : ' + LIBELLES.moment[r.moment] + ' (' + r.raison + ')');
+    }
+
+    // Toutes les minutes et au retour dans l'app : suit le passage 20h, samedi midi, etc.
+    function verifierMomentAuto() {
+        if (etat.momentMode !== 'auto' || etat.editionId) return;
+        var r = detecterMoment(new Date());
+        if (r.moment !== valeurRadio('moment')) {
+            momentAutomatique();
+            appliquerCotationsParDefaut();
+        }
+    }
+
+    /* =====================================================================
+       SITUATION
+       ===================================================================== */
+
+    function majInterfaceSituation() {
+        var normale = valeurRadio('situation') === 'normale';
+        ['deGroup', 'paiementGroup', 'tpChoiceGroup'].forEach(function (id) { $(id).classList.toggle('hidden', !normale); });
+        if (!normale) {
+            $('de').value = '';
+            cocherRadio('paiement', 'aucun');
+        }
+        majApercu();
+    }
+
+    function changerSituation() {
+        var situation = valeurRadio('situation');
+        if (situation === 'normale' && etat.situationPrecedente !== 'normale') {
+            cocherRadio('tpChoice', 'tp');
+            cocherRadio('paiement', 'cb');
+        }
+        etat.situationPrecedente = situation;
+        majInterfaceSituation();
+    }
+
+    /* =====================================================================
+       N° SÉCU : saisie
+       ===================================================================== */
+
+    function majStatutNir(n) {
+        var statut = $('nirStatus'), champ = $('numSecu'), valide = cleNirValide(n);
+        champ.classList.toggle('ko', valide === false);
+        statut.className = 'nir-status' + (valide === true ? ' ok' : valide === false ? ' ko' : '');
+        statut.textContent = valide === true ? '✓ Numéro valide' : valide === false ? '⚠️ Clé incorrecte, vérifier le numéro' : '';
+    }
+
+    function majBoutonsCorse(n) {
+        var actif = n.length === 6 && n.charAt(5) === '2';
+        Array.prototype.forEach.call(document.querySelectorAll('.nir-btn'), function (b) { b.disabled = !actif; });
+    }
+
+    function detecterAge(n) {
+        var partie = n.substring(0, 5);
+        if (partie.length < 5 || partie === etat.dernierePartieAge) return;
+        etat.dernierePartieAge = partie;
+        var age = ageDepuisNir(n, dateDeGarde());
+        if (age === null) return;
+        $('ageMoins6').checked = age < AGE_MEG_MAX;
+        $('agePlus80').checked = age >= AGE_MOP_MIN;
+        appliquerAge();
+    }
+
+    function surSaisieNir() {
+        var n = nettoyerNir($('numSecu').value);
+        $('numSecu').value = formaterNir(n);
+        majBoutonsCorse(n);
+        majStatutNir(n);
+        detecterAge(n);
+    }
+
+    /* =====================================================================
+       APERÇU
+       ===================================================================== */
+
+    function majApercu() {
+        var f = lireFormulaire(), r = calculer(f);
+        $('prevCotation').textContent = libelleCotation(f.codes, r.de, f.ikKm) || '-';
+        $('prevAMO').textContent = formatMontant(r.amo);
+        $('prevAMC').textContent = formatMontant(r.amc);
+        $('prevTotal').textContent = formatMontant(r.total);
+        $('prevPatient').textContent = formatMontant(r.patientPaye);
+        $('prevSecu').textContent = formatMontant(r.tiersPayantSecu);
+    }
+
+    /* =====================================================================
+       PATIENTS : ajout, modification, suppression
+       ===================================================================== */
+
+    function trouverPatient(id) {
+        for (var i = 0; i < etat.patients.length; i++) if (etat.patients[i].id === id) return i;
+        return -1;
+    }
+
+    function ajouterPatient() {
+        var f = lireFormulaire();
+        if (!f.nomPrenom) { alert('Veuillez entrer le nom du patient'); return; }
+        var r = calculer(f);
+
+        var patient = {
+            id: etat.editionId || Date.now(),
+            nomPrenom: f.nomPrenom, numSecu: f.numSecu, codeOrga: f.codeOrga, notes: f.notes,
+            moment: f.moment, situation: f.situation, tpChoice: f.tpChoice, paiement: f.paiement,
+            cotations: f.codes, totalActes: r.totalActes, amo: r.amo, amc: r.amc,
+            de: r.de, ikKm: f.ikKm, ik: r.ik, patientPaye: r.patientPaye, tiersPayantSecu: r.tiersPayantSecu,
+            ageMoins6: f.ageMoins6, agePlus80: f.agePlus80
+        };
+
+        if (etat.editionId) {
+            var i = trouverPatient(etat.editionId);
+            if (i !== -1) etat.patients[i] = patient;
+        } else {
+            if (etat.patients.length === 0 && !etat.dateGarde) {
+                etat.dateGarde = new Date();
+                sauverDate();
+                afficherDate();
+            }
+            etat.patients.push(patient);
         }
 
-        function formatMontant(n) { return n.toFixed(2).replace('.', ',') + ' €'; }
-        function calculerIK(km) { return km <= 0 ? 0 : Math.round(km * IK_TAUX * 100) / 100; }
+        sauverPatients();
+        afficherPatients();
+        nouveauPatient();
+    }
 
-        function getCotations() {
-            var codes = [];
-            var total = 0;
-            if (document.getElementById('cotVG').checked) { codes.push('VG'); total += TARIFS.VG; }
-            if (document.getElementById('cotG').checked) { codes.push('G'); total += TARIFS.G; }
-            if (document.getElementById('cotMD').checked) { codes.push('MD'); total += TARIFS.MD; }
-            if (document.getElementById('cotVRD').checked) { codes.push('VRD'); total += TARIFS.VRD; }
-            if (document.getElementById('cotVRN').checked) { codes.push('VRN'); total += TARIFS.VRN; }
-            if (document.getElementById('cotCRD').checked) { codes.push('CRD'); total += TARIFS.CRD; }
-            if (document.getElementById('cotCRN').checked) { codes.push('CRN'); total += TARIFS.CRN; }
-            if (document.getElementById('cotMVR').checked) { codes.push('MVR'); total += TARIFS.MVR; }
-            if (document.getElementById('cotSNP').checked) { codes.push('SNP'); total += TARIFS.SNP; }
-            if (document.getElementById('cotMEG').checked) { codes.push('MEG'); total += TARIFS.MEG; }
-            if (document.getElementById('cotMOP').checked) { codes.push('MOP'); total += TARIFS.MOP; }
-            if (document.getElementById('cotIMP').checked) { codes.push('IMP'); total += TARIFS.IMP; }
-            if (document.getElementById('cotGAV').checked) { codes.push('GAV'); total += TARIFS.GAV; }
-            if (document.getElementById('cotHDT').checked) { codes.push('HDT'); total += TARIFS.HDT; }
-            return { codes: codes, total: total };
+    // Remet le formulaire à zéro pour le patient suivant.
+    function nouveauPatient() {
+        ['nomPrenom', 'numSecu', 'codeOrga', 'notes', 'de', 'ikKm'].forEach(function (id) { $(id).value = ''; });
+        majStatutNir('');
+        majBoutonsCorse('');
+        etat.dernierePartieAge = '';
+        cocherRadio('situation', 'normale');
+        etat.situationPrecedente = 'normale';
+        cocherRadio('tpChoice', 'tp');
+        cocherRadio('paiement', 'cb');
+        $('ageMoins6').checked = false;
+        $('agePlus80').checked = false;
+        ACTES.forEach(function (a) { cocher(a, a === 'VG'); });
+        etat.editionId = null;
+        $('btnAjouter').textContent = 'Ajouter Patient';
+        momentAutomatique();
+        majInterfaceSituation();
+        appliquerCotationsParDefaut();
+    }
+
+    function modifierPatient(id) {
+        var i = trouverPatient(id);
+        if (i === -1) return;
+        var p = etat.patients[i];
+
+        etat.editionId = id;
+        $('nomPrenom').value = p.nomPrenom || '';
+        $('codeOrga').value = p.codeOrga || '';
+        $('notes').value = p.notes || '';
+        var n = nettoyerNir(p.numSecu);
+        $('numSecu').value = formaterNir(n);
+        majStatutNir(n);
+        majBoutonsCorse(n);
+        etat.dernierePartieAge = n.substring(0, 5);   // garde l'âge enregistré
+
+        cocherRadio('situation', p.situation);
+        etat.situationPrecedente = p.situation;
+        if (p.situation === 'normale') {
+            cocherRadio('tpChoice', p.tpChoice || 'tp');
+            cocherRadio('paiement', p.paiement || 'cb');
         }
+        $('ageMoins6').checked = !!p.ageMoins6;
+        $('agePlus80').checked = !!p.agePlus80;
 
-        function updateCotationsAuto() {
-            var moment = document.querySelector('input[name="moment"]:checked').value;
-            var isVG = document.getElementById('cotVG').checked;
-            var isG = document.getElementById('cotG').checked;
-            var ageMoins6 = document.getElementById('ageMoins6').checked;
-            var agePlus80 = document.getElementById('agePlus80').checked;
+        etat.momentMode = 'patient';
+        cocherRadio('moment', p.moment || 'jour');
+        afficherIndicateurMoment('Modification du patient enregistré');
 
-            if (moment === 'jour') {
-                document.getElementById('itemMD').classList.remove('disabled');
-            } else {
-                document.getElementById('itemMD').classList.add('disabled');
-                document.getElementById('cotMD').checked = false;
-            }
+        // Cotations rechargées telles qu'enregistrées, puis blocage MD selon le moment du patient
+        CODES.forEach(function (c) { cocher(c, contient(p.cotations || [], c)); });
+        majVerrouMD();
 
-            var situation = document.querySelector('input[name="situation"]:checked').value;
-            if (situation === 'normale') {
-                document.getElementById('tpChoiceTP').checked = true;
-            }
+        $('de').value = p.de > 0 ? formatNombre(p.de) : '';
+        $('ikKm').value = p.ikKm > 0 ? formatNombre(p.ikKm) : '';
 
-            if (moment === 'jour' && isVG) {
-                document.getElementById('cotMVR').checked = true;
-                document.getElementById('cotSNP').checked = true;
-                document.getElementById('cotMD').checked = true;
-            } else {
-                document.getElementById('cotMVR').checked = false;
-                document.getElementById('cotSNP').checked = false;
-                document.getElementById('cotMD').checked = false;
-            }
+        $('btnAjouter').textContent = 'Modifier Patient';
+        majInterfaceSituation();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
 
-            document.getElementById('cotVRD').checked = false;
-            document.getElementById('cotVRN').checked = false;
-            document.getElementById('cotCRD').checked = false;
-            document.getElementById('cotCRN').checked = false;
+    function supprimerPatient(id) {
+        if (!confirm('Supprimer ce patient ?')) return;
+        etat.patients = etat.patients.filter(function (p) { return p.id !== id; });
+        if (etat.editionId === id) nouveauPatient();
+        sauverPatients();
+        afficherPatients();
+    }
 
-            if (moment === 'nuit') {
-                if (isVG) document.getElementById('cotVRN').checked = true;
-                if (isG) document.getElementById('cotCRN').checked = true;
-            } else if (moment === 'ferie') {
-                if (isVG) document.getElementById('cotVRD').checked = true;
-                if (isG) document.getElementById('cotCRD').checked = true;
-            }
+    /* =====================================================================
+       AFFICHAGE
+       ===================================================================== */
 
-            document.getElementById('cotMEG').checked = ageMoins6;
-            document.getElementById('cotMOP').checked = agePlus80;
+    function afficherDate() {
+        var d = dateDeGarde();
+        $('currentDate').textContent = dateLongue(d);
+        $('dateInput').value = dateLocaleISO(d);
+    }
 
-            calculerPreview();
-        }
+    function afficherPatients() {
+        var liste = $('patientList');
+        $('patientCount').textContent = etat.patients.length;
 
-        function updateInterface() {
-            var situation = document.querySelector('input[name="situation"]:checked').value;
-            var deGroup = document.getElementById('deGroup');
-            var paiementGroup = document.getElementById('paiementGroup');
-            var tpChoiceGroup = document.getElementById('tpChoiceGroup');
-            
-            if (situation === 'normale') {
-                deGroup.classList.remove('hidden');
-                paiementGroup.classList.remove('hidden');
-                tpChoiceGroup.classList.remove('hidden');
-            } else {
-                deGroup.classList.add('hidden');
-                paiementGroup.classList.add('hidden');
-                tpChoiceGroup.classList.add('hidden');
-                document.getElementById('de').value = 0;
-                document.getElementById('paieAucun').checked = true;
-            }
-            calculerPreview();
-        }
+        if (etat.patients.length === 0) {
+            liste.innerHTML = '<div class="empty-state">Aucun patient</div>';
+        } else {
+            liste.innerHTML = etat.patients.map(function (p, i) {
+                var details = [];
+                if (p.moment) details.push(LIBELLES.moment[p.moment] || p.moment);
+                details.push((LIBELLES.situation[p.situation] || p.situation) +
+                    (p.situation === 'normale' ? (p.tpChoice === 'tout' ? ' (Tout)' : ' (TP)') : ''));
+                details.push((p.cotations || []).join('+'));
+                if (p.numSecu) details.push(p.numSecu.substring(0, 7) + '...');
 
-        function calculerPreview() {
-            var situation = document.querySelector('input[name="situation"]:checked').value;
-            var tpChoice = document.querySelector('input[name="tpChoice"]:checked').value;
-            var cotations = getCotations();
-            var de = situation === 'normale' ? (parseFloat(document.getElementById('de').value) || 0) : 0;
-            var ikKm = parseFloat(document.getElementById('ikKm').value) || 0;
-            var ik = calculerIK(ikKm);
-
-            var totalActes = cotations.total;
-            var amo, amc, patientPaye, tiersPayantSecu;
-
-            if (situation === 'normale') {
-                amo = Math.round(totalActes * 0.7 * 100) / 100;
-                amc = Math.round(totalActes * 0.3 * 100) / 100;
-                if (tpChoice === 'tout') {
-                    patientPaye = amo + amc + de + ik;
-                    tiersPayantSecu = 0;
-                } else {
-                    patientPaye = amc + de;
-                    tiersPayantSecu = amo + ik;
-                }
-            } else {
-                amo = totalActes;
-                amc = 0;
-                patientPaye = 0;
-                tiersPayantSecu = amo + ik;
-            }
-
-            var cotationStr = cotations.codes.join('+');
-            if (de > 0) cotationStr += '+DE' + de + '€';
-            if (ikKm > 0) cotationStr += '+IK' + ikKm + 'km';
-
-            document.getElementById('prevCotation').textContent = cotationStr || '-';
-            document.getElementById('prevAMO').textContent = formatMontant(amo);
-            document.getElementById('prevAMC').textContent = formatMontant(amc);
-            document.getElementById('prevTotal').textContent = formatMontant(amo + amc + de + ik);
-            document.getElementById('prevPatient').textContent = formatMontant(patientPaye);
-            document.getElementById('prevSecu').textContent = formatMontant(tiersPayantSecu);
-        }
-
-        function ajouterPatient() {
-            var nomPrenom = document.getElementById('nomPrenom').value.trim();
-            if (!nomPrenom) { alert('Veuillez entrer le nom du patient'); return; }
-
-            var moment = document.querySelector('input[name="moment"]:checked').value;
-            var situation = document.querySelector('input[name="situation"]:checked').value;
-            var tpChoice = document.querySelector('input[name="tpChoice"]:checked').value;
-            var cotations = getCotations();
-            var de = situation === 'normale' ? (parseFloat(document.getElementById('de').value) || 0) : 0;
-            var ikKm = parseFloat(document.getElementById('ikKm').value) || 0;
-            var ik = calculerIK(ikKm);
-            var paiement = document.querySelector('input[name="paiement"]:checked').value;
-            var notes = document.getElementById('notes').value.trim();
-            var ageMoins6 = document.getElementById('ageMoins6').checked;
-            var agePlus80 = document.getElementById('agePlus80').checked;
-
-            var totalActes = cotations.total;
-            var amo, amc, patientPaye, tiersPayantSecu;
-
-            if (situation === 'normale') {
-                amo = Math.round(totalActes * 0.7 * 100) / 100;
-                amc = Math.round(totalActes * 0.3 * 100) / 100;
-                if (tpChoice === 'tout') {
-                    patientPaye = amo + amc + de + ik;
-                    tiersPayantSecu = 0;
-                } else {
-                    patientPaye = amc + de;
-                    tiersPayantSecu = amo + ik;
-                }
-            } else {
-                amo = totalActes;
-                amc = 0;
-                patientPaye = 0;
-                tiersPayantSecu = amo + ik;
-            }
-
-            var patient = {
-                id: editingId || Date.now(),
-                nomPrenom: nomPrenom,
-                numSecu: document.getElementById('numSecu').value.trim(),
-                codeOrga: document.getElementById('codeOrga').value.trim(),
-                moment: moment,
-                situation: situation,
-                tpChoice: situation === 'normale' ? tpChoice : 'tp',
-                cotations: cotations.codes,
-                totalActes: totalActes,
-                amo: amo,
-                amc: amc,
-                de: de,
-                ikKm: ikKm,
-                ik: ik,
-                paiement: situation === 'normale' ? paiement : 'aucun',
-                patientPaye: patientPaye,
-                tiersPayantSecu: tiersPayantSecu,
-                notes: notes,
-                ageMoins6: ageMoins6,
-                agePlus80: agePlus80
-            };
-
-            if (editingId) {
-                var index = patients.findIndex(function(p) { return p.id === editingId; });
-                if (index !== -1) patients[index] = patient;
-                editingId = null;
-                document.getElementById('btnAjouter').textContent = 'Ajouter Patient';
-            } else {
-                if (patients.length === 0 && !dateGarde) {
-                    dateGarde = new Date();
-                    localStorage.setItem('sosDateGarde', dateGarde.toISOString());
-                    document.getElementById('currentDate').textContent = dateGarde.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-                }
-                patients.push(patient);
-            }
-
-            sauvegarder();
-            afficherPatients();
-            resetForm();
-        }
-
-        function resetForm() {
-            document.getElementById('nomPrenom').value = '';
-            document.getElementById('numSecu').value = '';
-            document.getElementById('codeOrga').value = '';
-            document.getElementById('sitNormale').checked = true;
-            document.getElementById('tpChoiceTP').checked = true;
-            document.getElementById('ageMoins6').checked = false;
-            document.getElementById('agePlus80').checked = false;
-            document.getElementById('cotVG').checked = true;
-            document.getElementById('cotG').checked = false;
-            document.getElementById('cotMD').checked = true;
-            document.getElementById('cotVRD').checked = false;
-            document.getElementById('cotVRN').checked = false;
-            document.getElementById('cotCRD').checked = false;
-            document.getElementById('cotCRN').checked = false;
-            document.getElementById('cotMVR').checked = true;
-            document.getElementById('cotSNP').checked = true;
-            document.getElementById('cotMEG').checked = false;
-            document.getElementById('cotMOP').checked = false;
-            document.getElementById('cotIMP').checked = false;
-            document.getElementById('cotGAV').checked = false;
-            document.getElementById('cotHDT').checked = false;
-            document.getElementById('de').value = 0;
-            document.getElementById('ikKm').value = 0;
-            document.getElementById('notes').value = '';
-            document.getElementById('paieCB').checked = true;
-            editingId = null;
-            document.getElementById('btnAjouter').textContent = 'Ajouter Patient';
-            detectMoment();
-            updateInterface();
-        }
-
-        function supprimerPatient(id) {
-            if (confirm('Supprimer ce patient ?')) {
-                patients = patients.filter(function(p) { return p.id !== id; });
-                sauvegarder();
-                afficherPatients();
-            }
-        }
-
-        function modifierPatient(id) {
-            var p = patients.find(function(pat) { return pat.id === id; });
-            if (!p) return;
-
-            editingId = id;
-            document.getElementById('nomPrenom').value = p.nomPrenom;
-            document.getElementById('numSecu').value = p.numSecu || '';
-            document.getElementById('codeOrga').value = p.codeOrga || '';
-            document.getElementById('notes').value = p.notes || '';
-            document.getElementById('ageMoins6').checked = p.ageMoins6 || false;
-            document.getElementById('agePlus80').checked = p.agePlus80 || false;
-            
-            document.querySelector('input[name="moment"][value="' + (p.moment || 'jour') + '"]').checked = true;
-            document.querySelector('input[name="situation"][value="' + p.situation + '"]').checked = true;
-            if (p.situation === 'normale') {
-                document.querySelector('input[name="tpChoice"][value="' + p.tpChoice + '"]').checked = true;
-                document.querySelector('input[name="paiement"][value="' + p.paiement + '"]').checked = true;
-            }
-            
-            document.getElementById('cotVG').checked = p.cotations.indexOf('VG') !== -1;
-            document.getElementById('cotG').checked = p.cotations.indexOf('G') !== -1;
-            document.getElementById('cotMD').checked = p.cotations.indexOf('MD') !== -1;
-            document.getElementById('cotVRD').checked = p.cotations.indexOf('VRD') !== -1;
-            document.getElementById('cotVRN').checked = p.cotations.indexOf('VRN') !== -1;
-            document.getElementById('cotCRD').checked = p.cotations.indexOf('CRD') !== -1;
-            document.getElementById('cotCRN').checked = p.cotations.indexOf('CRN') !== -1;
-            document.getElementById('cotMVR').checked = p.cotations.indexOf('MVR') !== -1;
-            document.getElementById('cotSNP').checked = p.cotations.indexOf('SNP') !== -1;
-            document.getElementById('cotMEG').checked = p.cotations.indexOf('MEG') !== -1;
-            document.getElementById('cotMOP').checked = p.cotations.indexOf('MOP') !== -1;
-            document.getElementById('cotIMP').checked = p.cotations.indexOf('IMP') !== -1;
-            document.getElementById('cotGAV').checked = p.cotations.indexOf('GAV') !== -1;
-            document.getElementById('cotHDT').checked = p.cotations.indexOf('HDT') !== -1;
-            
-            document.getElementById('de').value = p.de || 0;
-            document.getElementById('ikKm').value = p.ikKm || 0;
-            
-            document.getElementById('btnAjouter').textContent = 'Modifier Patient';
-            updateInterface();
-            calculerPreview();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        function afficherPatients() {
-            var container = document.getElementById('patientList');
-            document.getElementById('patientCount').textContent = patients.length;
-
-            if (patients.length === 0) {
-                container.innerHTML = '<div class="empty-state">Aucun patient</div>';
-                updateTotals();
-                return;
-            }
-
-            container.innerHTML = patients.map(function(p, index) {
                 return '<div class="patient-item">' +
-                    '<button class="delete-btn" onclick="supprimerPatient(' + p.id + ')">×</button>' +
-                    '<button class="edit-btn" onclick="modifierPatient(' + p.id + ')">✎</button>' +
-                    '<div class="name">' + (index + 1) + '. ' + p.nomPrenom + '</div>' +
-                    '<div class="details">' +
-                        (p.moment ? p.moment.toUpperCase() + ' | ' : '') +
-                        p.situation.toUpperCase() + (p.situation === 'normale' ? (p.tpChoice === 'tout' ? ' (Tout)' : ' (TP)') : '') + ' | ' + p.cotations.join('+') +
-                        (p.numSecu ? ' | ' + p.numSecu.substring(0, 7) + '...' : '') +
-                    '</div>' +
-                    (p.notes ? '<div class="notes">' + p.notes + '</div>' : '') +
+                    '<button type="button" class="icon-btn edit-btn" data-action="modifier" data-id="' + p.id + '" aria-label="Modifier">✎</button>' +
+                    '<button type="button" class="icon-btn delete-btn" data-action="supprimer" data-id="' + p.id + '" aria-label="Supprimer">×</button>' +
+                    '<div class="name">' + (i + 1) + '. ' + echapper(p.nomPrenom) + '</div>' +
+                    '<div class="details">' + echapper(details.join(' | ')) + '</div>' +
+                    (p.notes ? '<div class="notes">' + echapper(p.notes) + '</div>' : '') +
                     '<div class="amounts">' +
                         (p.tiersPayantSecu > 0 ? '<span class="amo">Sécu ' + formatMontant(p.tiersPayantSecu) + '</span>' : '') +
                         (p.patientPaye > 0 ? '<span class="amc">Patient ' + formatMontant(p.patientPaye) + '</span>' : '') +
@@ -666,415 +936,403 @@
                     '</div>' +
                 '</div>';
             }).join('');
-
-            updateTotals();
         }
+        majTotaux();
+    }
 
-        function updateTotals() {
-            var totalSecu = 0;
-            var totalEncaisse = { cb: 0, cheque: 0, liquide: 0, virement: 0 };
+    function totaux() {
+        var t = { secu: 0, encaisse: { cb: 0, cheque: 0, liquide: 0, virement: 0 } };
+        etat.patients.forEach(function (p) {
+            t.secu += p.tiersPayantSecu || 0;
+            if (p.paiement !== 'aucun' && p.patientPaye > 0 && t.encaisse.hasOwnProperty(p.paiement)) {
+                t.encaisse[p.paiement] += p.patientPaye;
+            }
+        });
+        t.totalEncaisse = t.encaisse.cb + t.encaisse.cheque + t.encaisse.liquide + t.encaisse.virement;
+        t.ca = t.secu + t.totalEncaisse;
+        t.heures = heuresTravaillees();
+        t.caHeure = t.heures > 0 ? t.ca / t.heures : 0;
+        return t;
+    }
 
-            patients.forEach(function(p) {
-                totalSecu += p.tiersPayantSecu;
-                if (p.paiement !== 'aucun' && p.patientPaye > 0) {
-                    totalEncaisse[p.paiement] += p.patientPaye;
-                }
+    function majTotaux() {
+        var t = totaux();
+        $('totalSecu').textContent = formatMontant(t.secu);
+        $('totalEncaisse').textContent = formatMontant(t.totalEncaisse);
+        $('totalCA').textContent = formatMontant(t.ca);
+        $('caHeure').textContent = formatMontant(t.caHeure) + '/h';
+        $('totalHeures').textContent = t.heures;
+    }
+
+    /* =====================================================================
+       CRÉNEAUX (basés sur la date de garde, sauvegardés)
+       ===================================================================== */
+
+    function typeCreneaux() { return estWeekendOuFerie(dateDeGarde()) ? 'weekend' : 'semaine'; }
+
+    function heuresTravaillees() {
+        return CRENEAUX[typeCreneaux()].reduce(function (s, c) { return s + (etat.creneaux[c.id] ? c.heures : 0); }, 0);
+    }
+
+    function libelleCreneaux() {
+        var choisis = CRENEAUX[typeCreneaux()].filter(function (c) { return etat.creneaux[c.id]; })
+            .map(function (c) { return c.label; });
+        return choisis.join(', ') || 'Aucun';
+    }
+
+    function construireCreneaux() {
+        ['semaine', 'weekend'].forEach(function (t) {
+            $(t === 'semaine' ? 'creneauxSemaine' : 'creneauxWeekend').innerHTML = CRENEAUX[t].map(function (c) {
+                return '<input type="checkbox" id="' + c.id + '" data-creneau="' + c.id + '"><label for="' + c.id + '">' + c.label + '</label>';
+            }).join('');
+        });
+    }
+
+    function afficherCreneaux() {
+        var t = typeCreneaux();
+        $('jourType').textContent = t === 'weekend' ? 'Week-end / Férié' : 'Semaine';
+        $('creneauxSemaine').classList.toggle('hidden', t !== 'semaine');
+        $('creneauxWeekend').classList.toggle('hidden', t !== 'weekend');
+        Object.keys(etat.creneaux).forEach(function (id) { $(id).checked = etat.creneaux[id]; });
+        majTotaux();
+    }
+
+    /* =====================================================================
+       RÉINITIALISATION + SAUVEGARDE DE SECOURS
+       ===================================================================== */
+
+    function afficherRestauration() {
+        var s = stockLire(STORE.sauvegarde, null), bouton = $('btnRestaurer');
+        if (s && Array.isArray(s.patients) && s.patients.length > 0) {
+            var d = lireDateStockee(s.dateGarde) || lireDateStockee(s.savedAt) || new Date();
+            var n = s.patients.length;
+            bouton.textContent = '↩︎ Restaurer la garde du ' + dateCourte(d) + ' (' + n + ' patient' + (n > 1 ? 's' : '') + ')';
+            bouton.classList.remove('hidden');
+        } else {
+            bouton.classList.add('hidden');
+        }
+    }
+
+    function reinitialiser() {
+        if (!confirm('Réinitialiser tous les patients ?')) return;
+        // Copie de secours seulement s'il y a quelque chose à sauver (un Réinit à vide ne l'écrase pas)
+        if (etat.patients.length > 0) {
+            stockEcrire(STORE.sauvegarde, {
+                patients: etat.patients,
+                dateGarde: etat.dateGarde ? etat.dateGarde.toISOString() : null,
+                creneaux: etat.creneaux,
+                savedAt: new Date().toISOString()
             });
-
-            var encaisseTotal = totalEncaisse.cb + totalEncaisse.cheque + totalEncaisse.liquide + totalEncaisse.virement;
-            document.getElementById('totalSecu').textContent = formatMontant(totalSecu);
-            document.getElementById('totalEncaisse').textContent = formatMontant(encaisseTotal);
-            
-            var totalCA = totalSecu + encaisseTotal;
-            var heures = calculerHeures();
-            var caHeure = heures > 0 ? totalCA / heures : 0;
-            
-            document.getElementById('totalCA').textContent = formatMontant(totalCA);
-            document.getElementById('caHeure').textContent = formatMontant(caHeure) + '/h';
-            document.getElementById('totalHeures').textContent = heures;
         }
+        etat.patients = [];
+        etat.dateGarde = null;
+        etat.creneaux = creneauxParDefaut();
+        sauverPatients();
+        sauverDate();
+        sauverCreneaux();
+        rafraichirTout();
+        nouveauPatient();
+    }
 
-        function calculerHeures() {
-            var isWeekend = (today.getDay() === 0 || today.getDay() === 6);
-            var heures = 0;
-            if (isWeekend) {
-                if (document.getElementById('crenWE1').checked) heures += 6;
-                if (document.getElementById('crenWE2').checked) heures += 6;
-            } else {
-                if (document.getElementById('cren1').checked) heures += 4;
-                if (document.getElementById('cren2').checked) heures += 4;
-                if (document.getElementById('cren3').checked) heures += 4;
-            }
-            return heures;
-        }
+    function restaurer() {
+        var s = stockLire(STORE.sauvegarde, null);
+        if (!s || !Array.isArray(s.patients)) return;
+        if (etat.patients.length > 0 && !confirm('Remplacer la garde en cours par la garde sauvegardée ?')) return;
+        etat.patients = s.patients;
+        etat.dateGarde = lireDateStockee(s.dateGarde);
+        etat.creneaux = creneauxParDefaut();
+        if (s.creneaux) Object.keys(etat.creneaux).forEach(function (id) { if (typeof s.creneaux[id] === 'boolean') etat.creneaux[id] = s.creneaux[id]; });
+        sauverPatients();
+        sauverDate();
+        sauverCreneaux();
+        stockSupprimer(STORE.sauvegarde);
+        rafraichirTout();
+        nouveauPatient();
+    }
 
-        function initCreneaux() {
-            var isWeekend = (today.getDay() === 0 || today.getDay() === 6);
-            if (isWeekend) {
-                document.getElementById('jourType').textContent = 'Week-end';
-                document.getElementById('creneauxSemaine').classList.add('hidden');
-                document.getElementById('creneauxWeekend').classList.remove('hidden');
-            } else {
-                document.getElementById('jourType').textContent = 'Semaine';
-                document.getElementById('creneauxSemaine').classList.remove('hidden');
-                document.getElementById('creneauxWeekend').classList.add('hidden');
-            }
-            updateTotals();
-        }
-
-        function sauvegarder() { localStorage.setItem('sosPatients', JSON.stringify(patients)); }
-
-        function reinitialiser() {
-            if (confirm('Réinitialiser tous les patients ?')) {
-                patients = [];
-                dateGarde = null;
-                localStorage.removeItem('sosPatients');
-                localStorage.removeItem('sosDateGarde');
-                document.getElementById('currentDate').textContent = today.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-                afficherPatients();
-                resetForm();
-            }
-        }
-
-        function genererPDF() {
-            if (patients.length === 0) { alert('Aucun patient à exporter'); return; }
-            if (typeof window.jspdf === 'undefined') { alert('Erreur: Bibliothèque PDF non chargée.'); return; }
-
-            try {
-                var jsPDF = window.jspdf.jsPDF;
-                var doc = new jsPDF();
-                var pdfDate = dateGarde || today;
-                var dateStr = pdfDate.toLocaleDateString('fr-FR');
-
-                doc.setFontSize(18);
-                doc.text('FEUILLE DE ROUTE', 105, 20, { align: 'center' });
-                doc.setFontSize(12);
-                doc.text('Date : ' + dateStr, 105, 28, { align: 'center' });
-
-                var tableData = patients.map(function(p, i) {
-                    var cotationStr = p.cotations.join('+');
-                    if (p.de > 0) cotationStr += '+DE' + p.de + '€';
-                    if (p.ikKm > 0) cotationStr += '+IK' + p.ikKm + 'km';
-                    var numSecuPDF = '-';
-                    if (p.numSecu) {
-                        var digits = p.numSecu.replace(/\s/g, '');
-                        if (digits.length >= 15) numSecuPDF = digits.substring(0, 13) + ' ' + digits.substring(13);
-                        else numSecuPDF = digits;
-                    }
-                    return [i + 1, p.nomPrenom, numSecuPDF, p.codeOrga || '-', p.situation === 'normale' ? (p.tpChoice === 'tout' ? 'TOUT' : 'TP') : p.situation.toUpperCase(), cotationStr, formatMontant(p.amo), formatMontant(p.amc), formatMontant(p.amo + p.amc + p.de + p.ik), p.patientPaye > 0 ? formatMontant(p.patientPaye) + ' ' + p.paiement.toUpperCase() : '-', p.notes || ''];
-                });
-
-                doc.autoTable({
-                    startY: 35,
-                    head: [['N', 'Nom', 'N Secu', 'Orga', 'Sit.', 'Cotation', 'AMO', 'AMC', 'Total', 'Paiement', 'Notes']],
-                    body: tableData,
-                    theme: 'grid',
-                    styles: { fontSize: 6, cellPadding: 1 },
-                    headStyles: { fillColor: [59, 130, 246], textColor: 255 }
-                });
-
-                var finalY = doc.lastAutoTable.finalY + 10;
-                var totalTPSecu = 0;
-                var encaisse = { cb: 0, cheque: 0, liquide: 0, virement: 0 };
-
-                patients.forEach(function(p) {
-                    totalTPSecu += p.tiersPayantSecu;
-                    if (p.paiement !== 'aucun' && p.patientPaye > 0) encaisse[p.paiement] += p.patientPaye;
-                });
-
-                var totalEncaisse = encaisse.cb + encaisse.cheque + encaisse.liquide + encaisse.virement;
-                var totalCA = totalTPSecu + totalEncaisse;
-                var heures = calculerHeures();
-                var caHeure = heures > 0 ? totalCA / heures : 0;
-                
-                var isWeekend = (today.getDay() === 0 || today.getDay() === 6);
-                var creneauxStr = '';
-                if (isWeekend) {
-                    var cren = [];
-                    if (document.getElementById('crenWE1').checked) cren.push('8h-14h');
-                    if (document.getElementById('crenWE2').checked) cren.push('14h-20h');
-                    creneauxStr = cren.join(', ') || 'Aucun';
-                } else {
-                    var cren = [];
-                    if (document.getElementById('cren1').checked) cren.push('8h-12h');
-                    if (document.getElementById('cren2').checked) cren.push('12h-16h');
-                    if (document.getElementById('cren3').checked) cren.push('16h-20h');
-                    creneauxStr = cren.join(', ') || 'Aucun';
-                }
-
-                doc.setFontSize(11);
-                doc.setFont(undefined, 'bold');
-                doc.text('RECAPITULATIF', 14, finalY);
-
-                doc.setFont(undefined, 'normal');
-                doc.setFontSize(10);
-
-                var y = finalY + 8;
-                doc.text('Creneaux : ' + creneauxStr + ' (' + heures + 'h)', 14, y);
-                y += 8;
-                doc.text('TIERS PAYANT SECU : ' + formatMontant(totalTPSecu), 14, y);
-                y += 8;
-                doc.text('ENCAISSE PATIENT :', 14, y);
-                y += 6;
-                doc.text('  CB : ' + formatMontant(encaisse.cb), 14, y);
-                y += 5;
-                doc.text('  Cheque : ' + formatMontant(encaisse.cheque), 14, y);
-                y += 5;
-                doc.text('  Liquide : ' + formatMontant(encaisse.liquide), 14, y);
-                y += 5;
-                doc.text('  Virement : ' + formatMontant(encaisse.virement), 14, y);
-                y += 5;
-                doc.setFont(undefined, 'bold');
-                doc.text('  TOTAL ENCAISSE : ' + formatMontant(totalEncaisse), 14, y);
-
-                y += 12;
-                doc.setFontSize(12);
-                doc.text('TOTAL CA : ' + formatMontant(totalCA), 14, y);
-                doc.text('CA/h : ' + formatMontant(caHeure), 120, y);
-                y += 8;
-                doc.text('Patients : ' + patients.length, 14, y);
-
-                var filename = 'SOS_' + dateStr.replace(/\//g, '-') + '.pdf';
-                doc.save(filename);
-            } catch(e) {
-                alert('Erreur: ' + e.message);
-            }
-        }
-
-        function partagerPDF() {
-            if (patients.length === 0) { alert('Aucun patient à exporter'); return; }
-            if (typeof window.jspdf === 'undefined') { alert('Erreur: Bibliothèque PDF non chargée.'); return; }
-            if (!navigator.share) { alert('Partage non disponible. Utilisez PDF.'); return; }
-
-            try {
-                var jsPDF = window.jspdf.jsPDF;
-                var doc = new jsPDF();
-                var pdfDate = dateGarde || today;
-                var dateStr = pdfDate.toLocaleDateString('fr-FR');
-
-                doc.setFontSize(18);
-                doc.text('FEUILLE DE ROUTE', 105, 20, { align: 'center' });
-                doc.setFontSize(12);
-                doc.text('Date : ' + dateStr, 105, 28, { align: 'center' });
-
-                var tableData = patients.map(function(p, i) {
-                    var cotationStr = p.cotations.join('+');
-                    if (p.de > 0) cotationStr += '+DE' + p.de + '€';
-                    if (p.ikKm > 0) cotationStr += '+IK' + p.ikKm + 'km';
-                    var numSecuPDF = '-';
-                    if (p.numSecu) {
-                        var digits = p.numSecu.replace(/\s/g, '');
-                        if (digits.length >= 15) numSecuPDF = digits.substring(0, 13) + ' ' + digits.substring(13);
-                        else numSecuPDF = digits;
-                    }
-                    return [i + 1, p.nomPrenom, numSecuPDF, p.codeOrga || '-', p.situation === 'normale' ? (p.tpChoice === 'tout' ? 'TOUT' : 'TP') : p.situation.toUpperCase(), cotationStr, formatMontant(p.amo), formatMontant(p.amc), formatMontant(p.amo + p.amc + p.de + p.ik), p.patientPaye > 0 ? formatMontant(p.patientPaye) + ' ' + p.paiement.toUpperCase() : '-', p.notes || ''];
-                });
-
-                doc.autoTable({
-                    startY: 35,
-                    head: [['N', 'Nom', 'N Secu', 'Orga', 'Sit.', 'Cotation', 'AMO', 'AMC', 'Total', 'Paiement', 'Notes']],
-                    body: tableData,
-                    theme: 'grid',
-                    styles: { fontSize: 6, cellPadding: 1 },
-                    headStyles: { fillColor: [59, 130, 246], textColor: 255 }
-                });
-
-                var finalY = doc.lastAutoTable.finalY + 10;
-                var totalTPSecu = 0;
-                var encaisse = { cb: 0, cheque: 0, liquide: 0, virement: 0 };
-
-                patients.forEach(function(p) {
-                    totalTPSecu += p.tiersPayantSecu;
-                    if (p.paiement !== 'aucun' && p.patientPaye > 0) encaisse[p.paiement] += p.patientPaye;
-                });
-
-                var totalEncaisse = encaisse.cb + encaisse.cheque + encaisse.liquide + encaisse.virement;
-                var totalCA = totalTPSecu + totalEncaisse;
-                var heures = calculerHeures();
-                var caHeure = heures > 0 ? totalCA / heures : 0;
-                
-                var isWeekend = (today.getDay() === 0 || today.getDay() === 6);
-                var creneauxStr = '';
-                if (isWeekend) {
-                    var cren = [];
-                    if (document.getElementById('crenWE1').checked) cren.push('8h-14h');
-                    if (document.getElementById('crenWE2').checked) cren.push('14h-20h');
-                    creneauxStr = cren.join(', ') || 'Aucun';
-                } else {
-                    var cren = [];
-                    if (document.getElementById('cren1').checked) cren.push('8h-12h');
-                    if (document.getElementById('cren2').checked) cren.push('12h-16h');
-                    if (document.getElementById('cren3').checked) cren.push('16h-20h');
-                    creneauxStr = cren.join(', ') || 'Aucun';
-                }
-
-                doc.setFontSize(11);
-                doc.setFont(undefined, 'bold');
-                doc.text('RECAPITULATIF', 14, finalY);
-                doc.setFont(undefined, 'normal');
-                doc.setFontSize(10);
-
-                var y = finalY + 8;
-                doc.text('Creneaux : ' + creneauxStr + ' (' + heures + 'h)', 14, y);
-                y += 8;
-                doc.text('TIERS PAYANT SECU : ' + formatMontant(totalTPSecu), 14, y);
-                y += 8;
-                doc.text('ENCAISSE : ' + formatMontant(totalEncaisse), 14, y);
-                y += 10;
-                doc.setFont(undefined, 'bold');
-                doc.setFontSize(12);
-                doc.text('TOTAL CA : ' + formatMontant(totalCA) + ' | CA/h : ' + formatMontant(caHeure) + ' | ' + patients.length + ' patients', 14, y);
-
-                var filename = 'SOS_' + dateStr.replace(/\//g, '-') + '.pdf';
-                var pdfBlob = doc.output('blob');
-                var file = new File([pdfBlob], filename, { type: 'application/pdf' });
-
-                navigator.share({ files: [file], title: 'Feuille de route' }).catch(function(err) { doc.save(filename); });
-            } catch(e) { alert('Erreur: ' + e.message); }
-        }
-
-        document.querySelectorAll('input[name="moment"]').forEach(function(r) { r.addEventListener('change', updateCotationsAuto); });
-        document.querySelectorAll('input[name="situation"]').forEach(function(r) { r.addEventListener('change', updateInterface); });
-        document.querySelectorAll('input[name="tpChoice"]').forEach(function(r) { r.addEventListener('change', calculerPreview); });
-        document.querySelectorAll('.cotation-item input').forEach(function(cb) { cb.addEventListener('change', calculerPreview); });
-        document.getElementById('de').addEventListener('input', calculerPreview);
-        document.getElementById('ikKm').addEventListener('input', calculerPreview);
-        document.getElementById('ageMoins6').addEventListener('change', function() {
-            document.getElementById('cotMEG').checked = this.checked;
-            if (this.checked) { document.getElementById('agePlus80').checked = false; document.getElementById('cotMOP').checked = false; }
-            calculerPreview();
-        });
-        document.getElementById('agePlus80').addEventListener('change', function() {
-            document.getElementById('cotMOP').checked = this.checked;
-            if (this.checked) { document.getElementById('ageMoins6').checked = false; document.getElementById('cotMEG').checked = false; }
-            calculerPreview();
-        });
-
-        document.getElementById('cotVG').addEventListener('change', function() {
-            if (this.checked) {
-                document.getElementById('cotG').checked = false;
-                document.getElementById('cotIMP').checked = false;
-                document.getElementById('cotGAV').checked = false;
-                document.getElementById('cotHDT').checked = false;
-            }
-            updateCotationsAuto();
-        });
-        document.getElementById('cotG').addEventListener('change', function() {
-            if (this.checked) {
-                document.getElementById('cotVG').checked = false;
-                document.getElementById('cotIMP').checked = false;
-                document.getElementById('cotGAV').checked = false;
-                document.getElementById('cotHDT').checked = false;
-            }
-            updateCotationsAuto();
-        });
-        ['cotIMP', 'cotGAV', 'cotHDT'].forEach(function(id) {
-            document.getElementById(id).addEventListener('change', function() {
-                if (this.checked) {
-                    document.getElementById('cotVG').checked = false;
-                    document.getElementById('cotG').checked = false;
-                }
-                calculerPreview();
-            });
-        });
-
-        document.getElementById('btnAjouter').addEventListener('click', ajouterPatient);
-        document.getElementById('btnReinit').addEventListener('click', reinitialiser);
-        document.getElementById('btnPDF').addEventListener('click', genererPDF);
-        document.getElementById('btnPartager').addEventListener('click', partagerPDF);
-
-        document.getElementById('numSecu').addEventListener('input', function() {
-            var val = this.value.replace(/\s/g, '').replace(/\D/g, '');
-            if (val.length > 15) val = val.substring(0, 15);
-            var formatted = '';
-            if (val.length > 0) formatted = val.substring(0, 1);
-            if (val.length > 1) formatted += ' ' + val.substring(1, 3);
-            if (val.length > 3) formatted += ' ' + val.substring(3, 5);
-            if (val.length > 5) formatted += ' ' + val.substring(5, 7);
-            if (val.length > 7) formatted += ' ' + val.substring(7, 10);
-            if (val.length > 10) formatted += ' ' + val.substring(10, 13);
-            if (val.length > 13) formatted += ' ' + val.substring(13, 15);
-            this.value = formatted;
-
-            if (val.length >= 5) {
-                var anneeSecu = parseInt(val.substring(1, 3));
-                var moisSecu = parseInt(val.substring(3, 5));
-                var currentYear = today.getFullYear();
-                var currentMonth = today.getMonth() + 1;
-                
-                var anneeNaissance;
-                if (anneeSecu >= 20 && anneeSecu <= 26) {
-                    anneeNaissance = 2000 + anneeSecu;
-                } else {
-                    anneeNaissance = 1900 + anneeSecu;
-                }
-                
-                var age = currentYear - anneeNaissance;
-                if (currentMonth < moisSecu) age--;
-                
-                if (age < 6) {
-                    document.getElementById('ageMoins6').checked = true;
-                    document.getElementById('agePlus80').checked = false;
-                    document.getElementById('cotMEG').checked = true;
-                    document.getElementById('cotMOP').checked = false;
-                } else if (age > 80) {
-                    document.getElementById('agePlus80').checked = true;
-                    document.getElementById('ageMoins6').checked = false;
-                    document.getElementById('cotMOP').checked = true;
-                    document.getElementById('cotMEG').checked = false;
-                } else {
-                    document.getElementById('ageMoins6').checked = false;
-                    document.getElementById('agePlus80').checked = false;
-                    document.getElementById('cotMEG').checked = false;
-                    document.getElementById('cotMOP').checked = false;
-                }
-                calculerPreview();
-            }
-        });
-
-        document.getElementById('codeOrga').addEventListener('input', function() {
-            var val = this.value.replace(/\s/g, '').replace(/\D/g, '');
-            if (val.length > 9) val = val.substring(0, 9);
-            var formatted = '';
-            if (val.length > 0) formatted = val.substring(0, Math.min(2, val.length));
-            if (val.length > 2) formatted += ' ' + val.substring(2, Math.min(5, val.length));
-            if (val.length > 5) formatted += ' ' + val.substring(5);
-            this.value = formatted;
-        });
-
-        document.getElementById('cren1').addEventListener('change', updateTotals);
-        document.getElementById('cren2').addEventListener('change', updateTotals);
-        document.getElementById('cren3').addEventListener('change', updateTotals);
-        document.getElementById('crenWE1').addEventListener('change', updateTotals);
-        document.getElementById('crenWE2').addEventListener('change', updateTotals);
-
-        var dateInput = document.getElementById('dateInput');
-        document.getElementById('currentDate').addEventListener('click', function() {
-            var currentDate = dateGarde || today;
-            dateInput.value = currentDate.toISOString().split('T')[0];
-            dateInput.style.left = '50%';
-            dateInput.style.transform = 'translateX(-50%)';
-            dateInput.style.position = 'fixed';
-            dateInput.style.top = '60px';
-            dateInput.style.zIndex = '9999';
-            dateInput.focus();
-        });
-        dateInput.addEventListener('change', function() {
-            if (this.value) {
-                dateGarde = new Date(this.value + 'T12:00:00');
-                localStorage.setItem('sosDateGarde', dateGarde.toISOString());
-                document.getElementById('currentDate').textContent = dateGarde.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-            }
-            this.style.left = '-9999px';
-        });
-        dateInput.addEventListener('blur', function() {
-            this.style.left = '-9999px';
-        });
-
+    function rafraichirTout() {
+        afficherDate();
         afficherPatients();
-        detectMoment();
-        initCreneaux();
-        updateInterface();
+        afficherCreneaux();
+        afficherRestauration();
+    }
+
+    /* =====================================================================
+       PDF — un seul document pour « PDF » et « Partager »
+       ===================================================================== */
+
+    function pdfPossible() {
+        if (etat.patients.length === 0) { alert('Aucun patient à exporter'); return false; }
+        if (!window.jspdf || !window.jspdf.jsPDF) {
+            alert('Outil PDF non chargé. Ouvrez l\'app une fois avec du réseau, puis réessayez.');
+            return false;
+        }
+        return true;
+    }
+
+    function nirPourPDF(numSecu) {
+        var n = nettoyerNir(numSecu);
+        if (!n) return '-';
+        return n.length === 15 ? n.substring(0, 13) + ' ' + n.substring(13) : n;
+    }
+
+    function construirePDF() {
+        var doc = new window.jspdf.jsPDF();
+        var dateStr = dateCourte(dateDeGarde());
+        var t = totaux();
+
+        doc.setFontSize(18);
+        doc.text('FEUILLE DE ROUTE', 105, 20, { align: 'center' });
+        doc.setFontSize(12);
+        doc.text('Date : ' + dateStr, 105, 28, { align: 'center' });
+
+        doc.autoTable({
+            startY: 35,
+            head: [['N', 'Nom', 'N Secu', 'Orga', 'Sit.', 'Cotation', 'AMO', 'AMC', 'Total', 'Paiement', 'Notes']],
+            body: etat.patients.map(function (p, i) {
+                return [
+                    i + 1,
+                    p.nomPrenom,
+                    nirPourPDF(p.numSecu),
+                    p.codeOrga || '-',
+                    p.situation === 'normale' ? (p.tpChoice === 'tout' ? 'TOUT' : 'TP') : String(p.situation).toUpperCase(),
+                    libelleCotation(p.cotations || [], p.de, p.ikKm),
+                    formatMontant(p.amo),
+                    formatMontant(p.amc),
+                    formatMontant(p.amo + p.amc + p.de + p.ik),
+                    p.patientPaye > 0 ? formatMontant(p.patientPaye) + ' ' + (LIBELLES.paiementPDF[p.paiement] || '') : '-',
+                    p.notes || ''
+                ];
+            }),
+            theme: 'grid',
+            styles: { fontSize: 6, cellPadding: 1 },
+            headStyles: { fillColor: [59, 130, 246], textColor: 255 }
+        });
+
+        var y = doc.lastAutoTable.finalY + 10;
+        if (y > 230) { doc.addPage(); y = 20; }   // garde le récapitulatif d'un seul tenant
+
+        doc.setFontSize(11);
+        doc.setFont(undefined, 'bold');
+        doc.text('RECAPITULATIF', 14, y);
+        doc.setFont(undefined, 'normal');
+        doc.setFontSize(10);
+
+        y += 8; doc.text('Creneaux : ' + libelleCreneaux() + ' (' + t.heures + 'h)', 14, y);
+        y += 8; doc.text('TIERS PAYANT SECU : ' + formatMontant(t.secu), 14, y);
+        y += 8; doc.text('ENCAISSE PATIENT :', 14, y);
+        y += 6; doc.text('  CB : ' + formatMontant(t.encaisse.cb), 14, y);
+        y += 5; doc.text('  Cheque : ' + formatMontant(t.encaisse.cheque), 14, y);
+        y += 5; doc.text('  Liquide : ' + formatMontant(t.encaisse.liquide), 14, y);
+        y += 5; doc.text('  Virement : ' + formatMontant(t.encaisse.virement), 14, y);
+        y += 5;
+        doc.setFont(undefined, 'bold');
+        doc.text('  TOTAL ENCAISSE : ' + formatMontant(t.totalEncaisse), 14, y);
+
+        y += 12;
+        doc.setFontSize(12);
+        doc.text('TOTAL CA : ' + formatMontant(t.ca), 14, y);
+        doc.text('CA/h : ' + formatMontant(t.caHeure), 120, y);
+        y += 8;
+        doc.text('Patients : ' + etat.patients.length, 14, y);
+
+        return { doc: doc, nomFichier: 'SOS_' + dateStr.replace(/\//g, '-') + '.pdf' };
+    }
+
+    function telechargerPDF() {
+        if (!pdfPossible()) return;
+        try {
+            var pdf = construirePDF();
+            pdf.doc.save(pdf.nomFichier);
+        } catch (e) { alert('Erreur PDF : ' + e.message); }
+    }
+
+    function partagerPDF() {
+        if (!pdfPossible()) return;
+        var pdf, fichier = null;
+        try { pdf = construirePDF(); } catch (e) { alert('Erreur PDF : ' + e.message); return; }
+        try { fichier = new File([pdf.doc.output('blob')], pdf.nomFichier, { type: 'application/pdf' }); } catch (e) { fichier = null; }
+
+        var partageImpossible = !fichier || !navigator.share ||
+            (navigator.canShare && !navigator.canShare({ files: [fichier] }));
+        if (partageImpossible) { pdf.doc.save(pdf.nomFichier); return; }
+
+        navigator.share({ files: [fichier], title: 'Feuille de route' }).catch(function (err) {
+            if (err && err.name === 'AbortError') return;   // l'utilisateur a annulé : rien à faire
+            pdf.doc.save(pdf.nomFichier);
+        });
+    }
+
+    /* =====================================================================
+       EXAMENS TYPES (indépendant des patients)
+       ===================================================================== */
+
+    function construireExamens() {
+        $('patho').innerHTML = '<option value="">— Choisir —</option>' + EXAMENS.map(function (e) {
+            return '<option value="' + echapper(e.id) + '">' + echapper(e.label) + '</option>';
+        }).join('');
+    }
+
+    function choisirExamen() {
+        var id = $('patho').value, examen = null;
+        for (var i = 0; i < EXAMENS.length; i++) if (EXAMENS[i].id === id) examen = EXAMENS[i];
+        $('examGroup').classList.toggle('hidden', !examen);
+        if (examen) $('exam').value = examen.texte;
+    }
+
+    function copierExamen() {
+        var bouton = $('btnCopier'), zone = $('exam');
+        function confirmer() {
+            bouton.textContent = '✓ Copié !';
+            setTimeout(function () { bouton.textContent = '📋 Copier'; }, 1500);
+        }
+        function copieAncienne() {
+            zone.focus();
+            zone.setSelectionRange(0, zone.value.length);
+            try { document.execCommand('copy'); confirmer(); } catch (e) { alert('Copie impossible : sélectionnez le texte manuellement.'); }
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(zone.value).then(confirmer, copieAncienne);
+        } else {
+            copieAncienne();
+        }
+    }
+
+    /* =====================================================================
+       HORS LIGNE (service worker) + bandeau de mise à jour
+       ===================================================================== */
+
+    function initHorsLigne() {
+        if (!('serviceWorker' in navigator) || location.protocol === 'file:') return;
+        var avaitUnControleur = !!navigator.serviceWorker.controller, rechargement = false;
+
+        navigator.serviceWorker.register('sw.js').then(function (reg) {
+            function proposerMiseAJour(worker) {
+                var bandeau = $('updateBanner');
+                bandeau.classList.remove('hidden');
+                bandeau.onclick = function () { worker.postMessage('skipWaiting'); };
+            }
+            if (reg.waiting && avaitUnControleur) proposerMiseAJour(reg.waiting);
+            reg.addEventListener('updatefound', function () {
+                var w = reg.installing;
+                if (!w) return;
+                w.addEventListener('statechange', function () {
+                    if (w.state === 'installed' && navigator.serviceWorker.controller) proposerMiseAJour(w);
+                });
+            });
+        }).catch(function () { /* hors ligne non disponible : l'app fonctionne quand même */ });
+
+        navigator.serviceWorker.addEventListener('controllerchange', function () {
+            if (!avaitUnControleur || rechargement) return;   // pas de rechargement à la toute première installation
+            rechargement = true;
+            location.reload();
+        });
+    }
+
+    /* =====================================================================
+       ÉVÉNEMENTS
+       ===================================================================== */
+
+    function brancherEvenements() {
+        $('cotationGrid').addEventListener('change', function (e) {
+            var code = e.target.getAttribute('data-code');
+            if (!code) return;
+            if (contient(ACTES, code)) choisirActe(code, e.target.checked);
+            else majApercu();
+        });
+
+        $('momentGrid').addEventListener('change', function () {
+            etat.momentMode = 'manuel';
+            afficherIndicateurMoment('Choix manuel');
+            appliquerCotationsParDefaut();
+        });
+
+        $('situationGrid').addEventListener('change', changerSituation);
+        Array.prototype.forEach.call(document.querySelectorAll('input[name="tpChoice"], input[name="paiement"]'), function (r) {
+            r.addEventListener('change', majApercu);
+        });
+
+        $('ageMoins6').addEventListener('change', function () { if (this.checked) $('agePlus80').checked = false; appliquerAge(); });
+        $('agePlus80').addEventListener('change', function () { if (this.checked) $('ageMoins6').checked = false; appliquerAge(); });
+
+        $('de').addEventListener('input', majApercu);
+        $('ikKm').addEventListener('input', majApercu);
+
+        $('numSecu').addEventListener('input', surSaisieNir);
+        Array.prototype.forEach.call(document.querySelectorAll('.nir-btn'), function (b) {
+            b.addEventListener('click', function () {
+                $('numSecu').value = nettoyerNir($('numSecu').value) + this.getAttribute('data-lettre');
+                surSaisieNir();
+                $('numSecu').focus();
+            });
+        });
+        $('codeOrga').addEventListener('input', function () { this.value = formaterCodeOrga(this.value); });
+
+        $('btnAjouter').addEventListener('click', ajouterPatient);
+        $('patientList').addEventListener('click', function (e) {
+            var bouton = e.target.closest ? e.target.closest('[data-action]') : null;
+            if (!bouton) return;
+            var id = Number(bouton.getAttribute('data-id'));
+            if (bouton.getAttribute('data-action') === 'modifier') modifierPatient(id);
+            else supprimerPatient(id);
+        });
+
+        $('creneauxSemaine').parentNode.addEventListener('change', function (e) {
+            var id = e.target.getAttribute('data-creneau');
+            if (!id) return;
+            etat.creneaux[id] = e.target.checked;
+            sauverCreneaux();
+            majTotaux();
+        });
+
+        $('dateInput').addEventListener('click', function () {
+            try { if (this.showPicker) this.showPicker(); } catch (e) { /* sélecteur natif au toucher */ }
+        });
+        $('dateInput').addEventListener('change', function () {
+            var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(this.value);
+            if (m) {
+                etat.dateGarde = new Date(+m[1], +m[2] - 1, +m[3], 12, 0, 0);
+                sauverDate();
+                afficherCreneaux();
+            }
+            afficherDate();
+        });
+
+        $('btnReinit').addEventListener('click', reinitialiser);
+        $('btnRestaurer').addEventListener('click', restaurer);
+        $('btnPDF').addEventListener('click', telechargerPDF);
+        $('btnPartager').addEventListener('click', partagerPDF);
+
+        $('patho').addEventListener('change', choisirExamen);
+        $('btnCopier').addEventListener('click', copierExamen);
+
+        setInterval(verifierMomentAuto, 60000);
+        document.addEventListener('visibilitychange', function () { if (!document.hidden) verifierMomentAuto(); });
+    }
+
+    /* =====================================================================
+       DÉMARRAGE
+       ===================================================================== */
+
+    (function demarrer() {
+        $('appVersion').textContent = 'v' + APP_VERSION;
+        $('cotationGrid').innerHTML = GRILLE.map(function (ligne) {
+            return ligne.map(function (code) {
+                if (!code) return '<div></div>';
+                return '<div class="cotation-item" id="item' + code + '">' +
+                    '<input type="checkbox" id="cot' + code + '" data-code="' + code + '">' +
+                    '<label for="cot' + code + '"><span>' + code + '</span><small>' + formatTarif(TARIFS[code]) + '</small></label>' +
+                '</div>';
+            }).join('');
+        }).join('');
+        construireCreneaux();
+        construireExamens();
+        chargerEtat();
+        brancherEvenements();
+        rafraichirTout();
+        nouveauPatient();
+        initHorsLigne();
+    })();
     </script>
 </body>
 </html>
