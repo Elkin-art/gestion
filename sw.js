@@ -1,10 +1,10 @@
 /* Service worker — SOS Gestion
    - Page (index.html) : réseau d'abord (mises à jour immédiates), copie locale si pas de réseau
-     ou si le réseau met plus de 3 s à répondre.
+     ou si le réseau met plus de 3 s à répondre, ou si le site répond par une erreur (panne GitHub).
    - Outils PDF, icône, manifest : copie locale d'abord (fonctionnent hors ligne).
-   Changer CACHE (ex. sos-v2.1) uniquement si les outils PDF ou ce fichier changent. */
+   Changer CACHE (ex. sos-v2.2) uniquement si les outils PDF ou ce fichier changent. */
 
-var CACHE = 'sos-v2.1';
+var CACHE = 'sos-v2.2';
 var DELAI_RESEAU_MS = 3000;
 var FICHIERS_LOCAUX = ['./', './index.html', './manifest.json', './icon.png'];
 var LIBRAIRIES = [
@@ -58,8 +58,11 @@ self.addEventListener('fetch', function (event) {
                 if (rep.ok) {
                     var copie = rep.clone();
                     caches.open(CACHE).then(function (cache) { cache.put('./index.html', copie); });
+                    repondre(rep);
+                    return;
                 }
-                repondre(rep);
+                // Le site répond par une erreur : copie locale si elle existe, sinon l'erreur telle quelle
+                pageDepuisCache().then(function (r) { repondre(r || rep); });
             }).catch(function () {
                 clearTimeout(minuteur);
                 pageDepuisCache().then(function (r) {

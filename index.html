@@ -11,8 +11,9 @@
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icon.png">
     <title>Gestion</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <!-- Empreintes de contrôle : un fichier modifié chez le fournisseur est refusé par le téléphone -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4DNTlrdUmTzrDgektczlKNRRhy5X5AAOnx5S09ydFYWWNSfcEqDTTHgtNA==" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js" integrity="sha512-2/YdOMV+YNpanLCF5MdQwaoFRVbTmrJ4u4EpqS/USXAQNUDgI5uwYi6J98WVtJKcfe1AbgerygzDFToxAlOGEQ==" crossorigin="anonymous"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         :root {
@@ -161,6 +162,11 @@
         .actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 16px; }
         .link-btn { display: block; width: 100%; margin-top: 14px; background: none; border: none; color: #60a5fa; font-size: 14px; text-decoration: underline; cursor: pointer; }
 
+        /* Garde d'un autre jour encore ouverte */
+        .garde-banner { background: rgba(245, 158, 11, 0.15); border: 1px solid var(--warning); border-radius: 12px; padding: 14px; margin-bottom: 16px; font-size: 14px; text-align: center; }
+        .garde-banner .garde-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+        .garde-banner .btn { padding: 12px; font-size: 14px; }
+
         .footer { text-align: center; color: var(--text-dim); font-size: 11px; opacity: 0.6; }
         .update-banner {
             position: fixed; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom));
@@ -176,6 +182,14 @@
     <div class="date-wrap">
         <div class="date" id="currentDate"></div>
         <input type="date" id="dateInput" aria-label="Changer la date de garde">
+    </div>
+
+    <div class="garde-banner hidden" id="gardeBanner">
+        <div id="gardeBannerTexte"></div>
+        <div class="garde-actions">
+            <button type="button" class="btn btn-secondary" id="btnGardeContinuer">Continuer</button>
+            <button type="button" class="btn btn-danger" id="btnGardeNouvelle">Nouvelle garde</button>
+        </div>
     </div>
 
     <!-- ===== Nouveau patient ===== -->
@@ -195,7 +209,7 @@
         <div class="form-group">
             <label for="numSecu">N° Sécu</label>
             <div class="nir-row">
-                <input type="text" id="numSecu" placeholder="2 02 05 13 155 268 45" inputmode="numeric" autocomplete="off">
+                <input type="text" id="numSecu" placeholder="N° à 15 chiffres" inputmode="numeric" autocomplete="off">
                 <button type="button" class="nir-btn" data-lettre="A" disabled aria-label="Corse-du-Sud 2A">A</button>
                 <button type="button" class="nir-btn" data-lettre="B" disabled aria-label="Haute-Corse 2B">B</button>
             </div>
@@ -234,6 +248,7 @@
                 <input type="checkbox" id="ageMoins6"><label for="ageMoins6">&lt; 6 ans</label>
                 <input type="checkbox" id="agePlus80"><label for="agePlus80">≥ 80 ans</label>
             </div>
+            <div class="hint" id="ageHint"></div>
         </div>
 
         <div class="form-group" id="tpChoiceGroup">
@@ -359,7 +374,8 @@
        CONFIGURATION — tout ce qui concerne les tarifs et les règles est ici
        ===================================================================== */
 
-    var APP_VERSION = '2.1';
+    var APP_VERSION = '2.2';
+    var SAUVEGARDE_JOURS = 7;   // la copie de secours d'une garde réinitialisée s'efface seule après ce délai
     var IK_TAUX = 0.61;
 
     var TARIFS = {
@@ -410,7 +426,7 @@
         { id: 'lombalgie', label: 'Lombalgie', texte: "Patient conscient, bon état général, apyrétique.\nContracture paravertébrale lombaire.\nLasègue négatif bilatéral.\nPas de déficit sensitivo-moteur, ROT présents et symétriques.\nPas de trouble sphinctérien." }
     ];
 
-    var STORE = { patients: 'sosPatients', date: 'sosDateGarde', creneaux: 'sosCreneaux', sauvegarde: 'sosSauvegarde' };
+    var STORE = { patients: 'sosPatients', date: 'sosDateGarde', creneaux: 'sosCreneaux', sauvegarde: 'sosSauvegarde', continuee: 'sosGardeContinuee' };
 
     var CODES = [];
     GRILLE.forEach(function (ligne) { ligne.forEach(function (c) { if (c) CODES.push(c); }); });
@@ -540,10 +556,12 @@
     function ageDepuisNir(n, reference) {
         if (n.length < 5 || !/^\d{4}$/.test(n.substring(1, 5))) return null;
         var aa = parseInt(n.substring(1, 3), 10), mm = parseInt(n.substring(3, 5), 10);
-        var annee = reference.getFullYear();
-        var naissance = (2000 + aa <= annee) ? 2000 + aa : 1900 + aa;
+        var annee = reference.getFullYear(), moisConnu = mm >= 1 && mm <= 12;   // mois 20-42 / 99 : mois inconnu
+        var naissance = 2000 + aa;
+        // Naissance dans le futur (année, ou mois de l'année en cours) : la personne est née au siècle précédent
+        if (naissance > annee || (naissance === annee && moisConnu && mm > reference.getMonth() + 1)) naissance = 1900 + aa;
         var age = annee - naissance;
-        if (mm >= 1 && mm <= 12 && reference.getMonth() + 1 < mm) age--;   // mois 20-42 / 99 : mois inconnu
+        if (moisConnu && reference.getMonth() + 1 < mm) age--;
         return age;
     }
 
@@ -796,6 +814,8 @@
         Array.prototype.forEach.call(document.querySelectorAll('.nir-btn'), function (b) { b.disabled = !actif; });
     }
 
+    function indiceAge(texte) { $('ageHint').textContent = texte; }
+
     function cocherAge(valeur) {
         $('ageMoins6').checked = valeur === 'moins6';
         $('agePlus80').checked = valeur === 'plus80';
@@ -809,6 +829,10 @@
         if (partie.length < 5 || partie === etat.dernierePartieAge) return;
         etat.dernierePartieAge = partie;
         var age = ageDepuisNir(n, dateDeGarde());
+        // Les 2 chiffres de l'année ne distinguent pas un enfant de 0-5 ans d'un patient de 100-105 ans
+        indiceAge(age !== null && age < AGE_MEG_MAX
+            ? 'Âge lu sur le N° Sécu : ' + age + ' an' + (age > 1 ? 's' : '') + '. Patient centenaire (né en 19' + n.substring(1, 3) + ') ? Cochez « ≥ 80 ans ».'
+            : '');
         if (age === null) return;
         var cible = age < AGE_MEG_MAX ? 'moins6' : (age >= AGE_MOP_MIN ? 'plus80' : null);
         var actuel = ageCourant();
@@ -893,6 +917,7 @@
         majStatutNir('');
         majBoutonsCorse('');
         statutOCR('', '');
+        indiceAge('');
         etat.formulaireId++;
         etat.dernierePartieAge = '';
         etat.ageAuto = null;
@@ -929,6 +954,7 @@
 
         modeEdition(id);
         statutOCR('', '');
+        indiceAge('');
         etat.formulaireId++;
         etat.ageAuto = null;
         $('nomPrenom').value = p.nomPrenom || '';
@@ -1013,6 +1039,27 @@
             }).join('');
         }
         majTotaux();
+        afficherGardeOubliee();
+    }
+
+    // Garde contenant des patients mais datée d'un autre jour : propose de continuer ou d'en ouvrir une nouvelle.
+    // « Continuer » vaut pour la journée en cours (garde de nuit passée minuit).
+    function gardeOubliee(maintenant) {
+        if (etat.patients.length === 0 || !etat.dateGarde || memeJour(etat.dateGarde, maintenant)) return false;
+        return stockLire(STORE.continuee, null) !== dateLocaleISO(maintenant);
+    }
+
+    function afficherGardeOubliee() {
+        var visible = gardeOubliee(new Date());
+        $('gardeBanner').classList.toggle('hidden', !visible);
+        if (!visible) return;
+        var n = etat.patients.length;
+        $('gardeBannerTexte').textContent = 'Garde du ' + dateCourte(etat.dateGarde) + ' encore ouverte (' + n + ' patient' + (n > 1 ? 's' : '') + ')';
+    }
+
+    function continuerGarde() {
+        stockEcrire(STORE.continuee, dateLocaleISO(new Date()));
+        afficherGardeOubliee();
     }
 
     function totaux() {
@@ -1083,6 +1130,12 @@
 
     function afficherRestauration() {
         var s = stockLire(STORE.sauvegarde, null), bouton = $('btnRestaurer');
+        // Copie de secours trop ancienne : effacée du téléphone (noms et N° Sécu ne restent pas indéfiniment)
+        var creee = s ? lireDateStockee(s.savedAt) : null;
+        if (creee && Date.now() - creee.getTime() > SAUVEGARDE_JOURS * 86400000) {
+            stockSupprimer(STORE.sauvegarde);
+            s = null;
+        }
         if (s && Array.isArray(s.patients) && s.patients.length > 0) {
             var d = lireDateStockee(s.dateGarde) || lireDateStockee(s.savedAt) || new Date();
             var n = s.patients.length;
@@ -1093,8 +1146,8 @@
         }
     }
 
-    function reinitialiser() {
-        if (!confirm('Réinitialiser tous les patients ?')) return;
+    function reinitialiser(question) {
+        if (!confirm(typeof question === 'string' ? question : 'Réinitialiser tous les patients ?')) return;
         // Copie de secours seulement s'il y a quelque chose à sauver (un Réinit à vide ne l'écrase pas)
         if (etat.patients.length > 0) {
             stockEcrire(STORE.sauvegarde, {
@@ -1110,6 +1163,7 @@
         sauverPatients();
         sauverDate();
         sauverCreneaux();
+        stockSupprimer(STORE.continuee);
         rafraichirTout();
         nouveauPatient();
     }
@@ -1658,6 +1712,13 @@
                 afficherCreneaux();
             }
             afficherDate();
+            afficherGardeOubliee();
+        });
+
+        $('btnGardeContinuer').addEventListener('click', continuerGarde);
+        $('btnGardeNouvelle').addEventListener('click', function () {
+            reinitialiser('Démarrer une nouvelle garde ? La garde du ' + dateCourte(dateDeGarde()) +
+                ' reste récupérable ' + SAUVEGARDE_JOURS + ' jours (bouton Restaurer).');
         });
 
         $('btnReinit').addEventListener('click', reinitialiser);
@@ -1669,7 +1730,12 @@
         $('btnCopier').addEventListener('click', copierExamen);
 
         setInterval(verifierMomentAuto, 60000);
-        document.addEventListener('visibilitychange', function () { if (!document.hidden) verifierMomentAuto(); });
+        document.addEventListener('visibilitychange', function () {
+            if (document.hidden) return;
+            verifierMomentAuto();
+            afficherGardeOubliee();      // l'app peut rester ouverte plusieurs jours
+            afficherRestauration();      // efface la copie de secours périmée
+        });
     }
 
     /* =====================================================================
