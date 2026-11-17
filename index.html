@@ -374,7 +374,7 @@
        CONFIGURATION — tout ce qui concerne les tarifs et les règles est ici
        ===================================================================== */
 
-    var APP_VERSION = '2.2';
+    var APP_VERSION = '2.3';
     var SAUVEGARDE_JOURS = 7;   // la copie de secours d'une garde réinitialisée s'efface seule après ce délai
     var IK_TAUX = 0.61;
 
@@ -1347,8 +1347,12 @@
         core: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@6.0.0/tesseract-core-lstm.wasm.js',
         coreSimd: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@6.0.0/tesseract-core-simd-lstm.wasm.js',
         langue: 'https://cdn.jsdelivr.net/npm/@tesseract.js-data/fra@1.0.0/4.0.0_best_int/fra.traineddata.gz',
-        tailleMax: 1600,
-        // Essais successifs, seulement si le précédent n'a pas trouvé de N° Sécu valide
+        tailleMax: 1600,                  // photo entière : plus grand côté, en points
+        largeurCarte: 1500,               // carte recadrée : largeur, en points
+        marge: 1.06,                      // carte recadrée : petite marge gardée autour de la zone verte
+        vert: 1.12,                       // un point est « vert carte » si le vert dépasse le rouge et le bleu de 12 %
+        delaiMax: 20000,                  // photo illisible : on arrête les essais après 20 s
+        // Essais sur la photo entière, seulement si la carte recadrée n'a pas donné de N° Sécu valide
         essais: [
             { rotation: 0, psm: '3' }, { rotation: 0, psm: '11' },
             { rotation: 90, psm: '3' }, { rotation: 270, psm: '3' }, { rotation: 180, psm: '3' }
@@ -1367,13 +1371,20 @@
         s.className = 'ocr-status' + (type ? ' ' + type : '');
     }
 
+    // Sur une carte, le numéro commence par 1 ou 2 (les numéros provisoires 7 / 8 n'ont pas de carte)
     function nirPlausible(n) {
-        return /^[1278]\d{2}(0[1-9]|1[0-2]|[2-4]\d|[5-9]\d)/.test(n) && cleNirValide(n) === true;
+        return /^[12]\d{2}(0[1-9]|1[0-2]|[2-4]\d|[5-9]\d)/.test(n) && cleNirValide(n) === true;
     }
 
     // Cherche un N° Sécu valide dans une ligne de texte lu. Renvoie { nir, corrections } ou null.
     function chercherNir(ligne) {
-        var brut = String(ligne).toUpperCase().replace(/[^0-9A-Z|!]/g, '');
+        // Le N° Sécu est imprimé par groupes de 1 à 3 chiffres. Un groupe de 8 à 14 caractères collés
+        // est le numéro de série de la carte : il coupe la recherche (sinon un morceau de ce numéro
+        // peut, par hasard, avoir une clé valide et passer pour un N° Sécu).
+        var brut = String(ligne).toUpperCase().split(/\s+/).map(function (mot) {
+            var m = mot.replace(/[^0-9A-Z|!]/g, '');
+            return m.length >= 8 && m.length !== 15 ? '#' : m;
+        }).join('');
         var meilleur = null;
         function proposer(n, corrections) {
             if (nirPlausible(n) && (!meilleur || corrections < meilleur.corrections)) meilleur = { nir: n, corrections: corrections };
@@ -1405,37 +1416,54 @@
             .replace(/\s+/g, ' ').replace(/^[ '-]+|[ '-]+$/g, '').trim();
     }
 
-    function ressembleAUnNom(ligne) {
-        if (/\d/.test(ligne)) return false;
-        var lettres = (ligne.match(/[A-Za-zÀ-ÿ]/g) || []).length;
-        if (lettres < 3 || lettres / ligne.replace(/\s/g, '').length < 0.8) return false;
-        var nom = nettoyerNom(ligne), mots = nom.split(' ');
-        if (mots.length > 5) return false;
-        var motsCarte = mots.filter(function (m) { return contient(MOTS_CARTE, m); }).length;
-        return motsCarte === 0 && mots.some(function (m) { return m.length >= 2; });
+    // Nom lu sur une ligne de la carte, nettoyé ; '' si la ligne n'est pas un nom.
+    // Les noms sont imprimés en capitales (« émise le » ne l'est pas) et sans chiffres.
+    function nomDepuisLigne(ligne) {
+        var brut = String(ligne);
+        if ((brut.match(/\d/g) || []).length >= 2) return '';
+        var lettres = brut.match(/[A-Za-zÀ-ÖØ-öø-ÿ]/g) || [];
+        if (lettres.length < 2 || lettres.length / brut.replace(/\s/g, '').length < 0.7) return '';
+        var capitales = lettres.filter(function (c) { return c !== c.toLowerCase(); }).length;
+        if (capitales / lettres.length < 0.8) return '';
+        var mots = nettoyerNom(brut.replace(/\d/g, ' ')).split(' ').filter(Boolean);
+        // Lettre isolée au bord de la ligne : un reflet ou le bord de la photo lu comme une lettre
+        while (mots.length > 1 && mots[0].length === 1) mots.shift();
+        while (mots.length > 1 && mots[mots.length - 1].length === 1) mots.pop();
+        if (!mots.length || mots.length > 5) return '';
+        if (mots.some(function (m) { return contient(MOTS_CARTE, m); })) return '';
+        if (mots.join('').replace(/['-]/g, '').length < 2) return '';
+        return mots.join(' ');
     }
 
-    // Analyse le texte lu : N° Sécu (ancre) puis jusqu'à 2 lignes de nom juste au-dessus.
+    // Analyse le texte lu : N° Sécu (ancre), puis le nom juste au-dessus (carte avec photo)
+    // ou, à défaut, juste en dessous (ancienne carte sans photo).
     function analyserTexteCarte(texte) {
         var lignes = String(texte || '').split(/\r?\n/).map(function (l) { return l.trim(); }).filter(Boolean);
-        var trouve = null, indexNir = -1, i, r;
+        var trouve = null, indexNir = -1, finNir = -1, i, r;
         // 1) Numéro sur une seule ligne (cas normal)
         for (i = 0; i < lignes.length; i++) {
             r = chercherNir(lignes[i]);
-            if (r && (!trouve || r.corrections < trouve.corrections)) { trouve = r; indexNir = i; }
+            if (r && (!trouve || r.corrections < trouve.corrections)) { trouve = r; indexNir = i; finNir = i; }
         }
         // 2) Sinon, numéro coupé sur deux lignes consécutives
         for (i = 0; !trouve && i + 1 < lignes.length; i++) {
-            r = chercherNir(lignes[i] + lignes[i + 1]);
-            if (r) { trouve = r; indexNir = i; }
+            r = chercherNir(lignes[i] + ' ' + lignes[i + 1]);
+            if (r) { trouve = r; indexNir = i; finNir = i + 1; }
         }
         if (!trouve) return { nir: null, nom: null };
 
-        var morceaux = [];
-        for (var j = indexNir - 1; j >= 0 && morceaux.length < 2; j--) {
-            if (ressembleAUnNom(lignes[j])) morceaux.unshift(nettoyerNom(lignes[j]));
-            else if (morceaux.length) break;          // les lignes du nom sont consécutives
+        // Jusqu'à 2 lignes de nom qui se suivent ; une ligne parasite très courte au milieu est ignorée une fois
+        function ramasser(depart, pas) {
+            var morceaux = [], saut = false, nom;
+            for (var j = depart; j >= 0 && j < lignes.length && morceaux.length < 2; j += pas) {
+                nom = nomDepuisLigne(lignes[j]);
+                if (nom) { if (pas < 0) morceaux.unshift(nom); else morceaux.push(nom); }
+                else if (morceaux.length) { if (saut || lignes[j].length > 3) break; saut = true; }
+            }
+            return morceaux;
         }
+        var morceaux = ramasser(indexNir - 1, -1);
+        if (!morceaux.length) morceaux = ramasser(finNir + 1, 1);
         return { nir: trouve.nir, nom: morceaux.join(' ') || null };
     }
 
@@ -1520,7 +1548,101 @@
         return window.createImageBitmap ? createImageBitmap(fichier).catch(viaBalise) : viaBalise();
     }
 
-    // Redimensionne, tourne, passe en niveaux de gris et renforce le contraste.
+    // Rend le texte noir de la carte lisible par l'outil :
+    //  - gris = couleur la plus forte du point : le vert de la carte devient clair, le texte noir reste noir
+    //    (en gris classique, le vert et le noir se confondent et le nom / le numéro ne sont pas lus) ;
+    //  - éclairage égalisé par zones : chaque point est comparé à la clarté moyenne autour de lui,
+    //    ce qui efface les ombres, les reflets doux et le fond de la table.
+    function egaliser(ctx, W, H) {
+        var total = W * H, image = ctx.getImageData(0, 0, W, H), d = image.data;
+        var gris = new Uint8Array(total), i, p, x, y;
+        for (i = 0, p = 0; p < total; i += 4, p++) gris[p] = Math.max(d[i], d[i + 1], d[i + 2]);
+
+        // Somme cumulée (lignes et colonnes) : donne la clarté moyenne de n'importe quelle zone en 4 lectures
+        var L = W + 1, cumul = new Float64Array(L * (H + 1));
+        for (y = 0; y < H; y++) {
+            var ligne = 0;
+            for (x = 0; x < W; x++) {
+                ligne += gris[y * W + x];
+                cumul[(y + 1) * L + x + 1] = cumul[y * L + x + 1] + ligne;
+            }
+        }
+        var rayon = Math.max(12, Math.round(Math.max(W, H) / 24));
+        for (y = 0; y < H; y++) {
+            var y0 = Math.max(0, y - rayon), y1 = Math.min(H, y + rayon + 1);
+            for (x = 0; x < W; x++) {
+                var x0 = Math.max(0, x - rayon), x1 = Math.min(W, x + rayon + 1);
+                var moyenne = (cumul[y1 * L + x1] - cumul[y0 * L + x1] - cumul[y1 * L + x0] + cumul[y0 * L + x0]) / ((x1 - x0) * (y1 - y0));
+                // 1 = aussi clair que le fond autour ; 0,55 et moins = texte (noir)
+                var v = (gris[y * W + x] / Math.max(1, moyenne) - 0.55) / 0.45;
+                var g = v <= 0 ? 0 : (v >= 1 ? 255 : Math.round(v * 255));
+                if (moyenne < 30) g = 255;        // zone très sombre (table noire) : rien à lire, son grain ralentit l'outil
+                p = (y * W + x) * 4;
+                d[p] = d[p + 1] = d[p + 2] = g;
+                d[p + 3] = 255;
+            }
+        }
+        ctx.putImageData(image, 0, 0);
+    }
+
+    // Repère la carte dans la photo grâce à son vert : centre, taille et inclinaison.
+    // Méthode : on cherche l'inclinaison pour laquelle la zone verte tient dans le plus petit rectangle
+    // (les bords haut, droit et bas de la zone verte sont ceux de la carte).
+    // Renvoie null si aucune zone verte plausible (carte d'un autre modèle, nappe verte, photo sans carte).
+    function trouverCarte(source) {
+        var cote = Math.max(source.width, source.height), ech = Math.min(1, 320 / cote);
+        var W = Math.max(1, Math.round(source.width * ech)), H = Math.max(1, Math.round(source.height * ech));
+        var c = document.createElement('canvas');
+        c.width = W; c.height = H;
+        var ctx = c.getContext('2d');
+        ctx.drawImage(source, 0, 0, W, H);
+        var d = ctx.getImageData(0, 0, W, H).data, px = [], py = [], x, y, i = 0;
+        for (y = 0; y < H; y++) {
+            for (x = 0; x < W; x++, i += 4) {
+                var r = d[i], g = d[i + 1], b = d[i + 2];
+                if (g > 40 && g > r * OCR.vert && g > b * OCR.vert) { px.push(x); py.push(y); }
+            }
+        }
+        var n = px.length;
+        if (n < W * H * 0.02) return null;
+
+        var taille = 2 * (W + H) + 4, decal = W + H + 2, hu = new Uint32Array(taille), hv = new Uint32Array(taille);
+        // Étendue de la zone verte le long d'une direction, sans les 1 % de points isolés de chaque côté
+        function bornes(histo) {
+            var seuil = n * 0.01, cumul = 0, bas = 0, haut = taille - 1, k;
+            for (k = 0; k < taille; k++) { cumul += histo[k]; if (cumul > seuil) { bas = k; break; } }
+            for (cumul = 0, k = taille - 1; k >= 0; k--) { cumul += histo[k]; if (cumul > seuil) { haut = k; break; } }
+            return [bas - decal, haut - decal];
+        }
+        function mesurer(degres) {
+            var a = degres * Math.PI / 180, co = Math.cos(a), si = Math.sin(a), k;
+            for (k = 0; k < taille; k++) { hu[k] = 0; hv[k] = 0; }
+            for (k = 0; k < n; k++) {
+                hu[Math.round(px[k] * co + py[k] * si) + decal]++;
+                hv[Math.round(py[k] * co - px[k] * si) + decal]++;
+            }
+            var u = bornes(hu), v = bornes(hv);
+            return { angle: degres, u: u, v: v, aire: (u[1] - u[0] + 1) * (v[1] - v[0] + 1) };
+        }
+        var meilleur = null, m, t;
+        for (t = -45; t < 45; t += 3) { m = mesurer(t); if (!meilleur || m.aire < meilleur.aire) meilleur = m; }
+        var centre = meilleur.angle;
+        for (t = centre - 2.5; t <= centre + 2.5; t += 0.5) { m = mesurer(t); if (m.aire < meilleur.aire) meilleur = m; }
+
+        var du = meilleur.u[1] - meilleur.u[0] + 1, dv = meilleur.v[1] - meilleur.v[0] + 1;
+        var grand = Math.max(du, dv), petit = Math.min(du, dv), rapport = grand / petit;
+        if (rapport < 1.2 || rapport > 2.0) return null;                  // une carte fait 1,59 de large pour 1 de haut
+        if (n / (du * dv) < 0.45) return null;                            // zone pleine, pas des taches vertes éparpillées
+        if (du * dv > W * H * 0.9) return null;                           // tout est vert (nappe) : inutile
+        var a = meilleur.angle * Math.PI / 180, um = (meilleur.u[0] + meilleur.u[1]) / 2, vm = (meilleur.v[0] + meilleur.v[1]) / 2;
+        return {
+            cx: (um * Math.cos(a) - vm * Math.sin(a)) / ech, cy: (um * Math.sin(a) + vm * Math.cos(a)) / ech,
+            largeur: grand / ech, hauteur: petit / ech,
+            angle: du >= dv ? meilleur.angle : meilleur.angle + 90       // direction du grand côté
+        };
+    }
+
+    // Photo entière : redimensionnée, tournée de 0 / 90 / 180 / 270, puis égalisée
     function preparerImage(source, rotation) {
         var w = source.width, h = source.height, cote = Math.max(w, h);
         var echelle = cote > OCR.tailleMax ? OCR.tailleMax / cote : (cote < 1000 ? 1200 / cote : 1);
@@ -1532,24 +1654,94 @@
         ctx.translate(canvas.width / 2, canvas.height / 2);
         ctx.rotate(rotation * Math.PI / 180);
         ctx.drawImage(source, -lw / 2, -lh / 2, lw, lh);
-
-        var image = ctx.getImageData(0, 0, canvas.width, canvas.height), d = image.data;
-        var total = d.length / 4, histo = new Uint32Array(256), i, g;
-        for (i = 0; i < d.length; i += 4) {
-            g = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) | 0;
-            d[i] = g;
-            histo[g]++;
-        }
-        var bas = 0, haut = 255, cumul = 0;
-        for (g = 0; g < 256; g++) { cumul += histo[g]; if (cumul > total * 0.01) { bas = g; break; } }
-        for (cumul = 0, g = 255; g >= 0; g--) { cumul += histo[g]; if (cumul > total * 0.01) { haut = g; break; } }
-        var ecart = Math.max(1, haut - bas);
-        for (i = 0; i < d.length; i += 4) {
-            g = Math.max(0, Math.min(255, ((d[i] - bas) * 255 / ecart) | 0));
-            d[i] = d[i + 1] = d[i + 2] = g;
-        }
-        ctx.putImageData(image, 0, 0);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        egaliser(ctx, canvas.width, canvas.height);
         return canvas;
+    }
+
+    // Carte seule : recadrée, redressée, agrandie, puis égalisée. demiTour = carte tenue à l'envers.
+    function preparerCarte(source, carte, demiTour, largeur) {
+        var echelle = Math.min(3, (largeur || OCR.largeurCarte) / carte.largeur);
+        var W = Math.round(carte.largeur * OCR.marge * echelle), H = Math.round(carte.hauteur * OCR.marge * echelle);
+        var canvas = document.createElement('canvas');
+        canvas.width = W; canvas.height = H;
+        var ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, W, H);
+        ctx.translate(W / 2, H / 2);
+        ctx.rotate((demiTour ? 180 - carte.angle : -carte.angle) * Math.PI / 180);
+        ctx.scale(echelle, echelle);
+        ctx.drawImage(source, -carte.cx, -carte.cy);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        egaliser(ctx, W, H);
+        return canvas;
+    }
+
+    /* Lecture complète d'une photo. Renvoie { nir, nom } (nir = null si rien de sûr).
+       1) Carte repérée : lue recadrée et redressée, à l'endroit, puis à l'envers si aucun mot de la
+          carte n'a été reconnu ; ensuite deux autres lectures (texte épars, puis plus grand).
+       2) Sinon, ou si rien de valide : photo entière, dans les 4 sens.
+       Chaque lecture ne sert que si la précédente n'a pas donné de N° Sécu à clé valide. */
+    function lirePhoto(worker, source) {
+        var debut = Date.now(), carte = trouverCarte(source), lectures = 0;
+        function arret() { return { nir: null, nom: null, endroit: false, stop: true, lectures: lectures }; }
+        function lire(nom, psm, image) {
+            // Photo illisible : on s'arrête après un délai raisonnable plutôt que de tout essayer
+            var reste = OCR.delaiMax - (Date.now() - debut), minuteur;
+            if (lectures > 0 && reste <= 0) return Promise.resolve(arret());
+            lectures++;
+            var lecture = worker.setParameters({ tessedit_pageseg_mode: psm }).then(function () {
+                return worker.recognize(image());
+            }).then(function (r) {
+                var texte = r.data.text || '', resultat = analyserTexteCarte(texte);
+                // Mots imprimés sur toutes les cartes : s'ils sont lus, la carte est dans ce sens
+                resultat.endroit = /mise le|vitale|assurance|maladie/i.test(texte);
+                resultat.etape = nom;
+                resultat.lectures = lectures;
+                return resultat;
+            });
+            // Une lecture interminable (photo très bruitée) est coupée : l'outil sera relancé à la prochaine photo
+            var limite = new Promise(function (resolve) {
+                minuteur = setTimeout(function () {
+                    ocrWorker = null;
+                    try { worker.terminate(); } catch (e) { /* déjà arrêté */ }
+                    resolve(arret());
+                }, Math.max(4000, reste));
+            });
+            return Promise.race([lecture, limite]).then(function (r) { clearTimeout(minuteur); return r; });
+        }
+        // Enchaîne des lectures jusqu'à la première qui donne un N° Sécu
+        function suite(liste, i) {
+            if (i >= liste.length) return Promise.resolve({ nir: null, nom: null, lectures: lectures });
+            return liste[i]().then(function (r) { return r.nir || r.stop ? r : suite(liste, i + 1); });
+        }
+        function photoEntiere() {
+            return suite(OCR.essais.map(function (e) {
+                return function () { return lire('photo ' + e.rotation + '°', e.psm, function () { return preparerImage(source, e.rotation); }); };
+            }), 0);
+        }
+        if (!carte) return photoEntiere();
+
+        function carteLue(nom, psm, demiTour, largeur) {
+            return lire(nom, psm, function () { return preparerCarte(source, carte, demiTour, largeur); });
+        }
+        function autres(demiTour) {
+            return [
+                function () { return carteLue('carte, texte épars', '11', demiTour); },
+                function () { return carteLue('carte agrandie', '3', demiTour, Math.round(OCR.largeurCarte * 1.27)); }
+            ];
+        }
+        return carteLue('carte', '3', false).then(function (endroit) {
+            if (endroit.nir || endroit.stop) return endroit;
+            // Les mots de la carte ont été lus : elle est à l'endroit, inutile d'essayer à l'envers
+            if (endroit.endroit) return suite(autres(false).concat([photoEntiere]), 0);
+            return carteLue('carte à l\'envers', '3', true).then(function (envers) {
+                if (envers.nir || envers.stop) return envers;
+                // Sens inconnu (aucun mot reconnu) : les lectures suivantes se font dans les deux sens
+                var liste = envers.endroit ? autres(true) : autres(false).concat(autres(true));
+                return suite(liste.concat([photoEntiere]), 0);
+            });
+        });
     }
 
     function lireCarte(fichier) {
@@ -1560,24 +1752,13 @@
 
         var worker, source, formulaire = etat.formulaireId;
         function toujoursLeMemeFormulaire() { return formulaire === etat.formulaireId; }
-        function essayer(i) {
-            if (i >= OCR.essais.length) return Promise.resolve({ nir: null, nom: null });
-            var e = OCR.essais[i];
-            return worker.setParameters({ tessedit_pageseg_mode: e.psm }).then(function () {
-                return worker.recognize(preparerImage(source, e.rotation));
-            }).then(function (r) {
-                var resultat = analyserTexteCarte(r.data.text);
-                return resultat.nir ? resultat : essayer(i + 1);
-            });
-        }
-
         chargerOCR().then(function (w) {
             worker = w;
             statutOCR('Lecture de la carte…', '');
             return chargerImage(fichier);
         }).then(function (s) {
             source = s;
-            return essayer(0);
+            return lirePhoto(worker, source);
         }).then(function (r) {
             if (!toujoursLeMemeFormulaire()) return;   // patient ajouté/annulé pendant la lecture
             if (!r.nir) {
