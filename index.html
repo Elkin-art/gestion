@@ -74,16 +74,19 @@
         .hint { font-size: 12px; color: var(--text-dim); margin-top: 6px; }
 
         /* Nom + photo carte Vitale */
-        .name-row { display: grid; grid-template-columns: 1fr 52px; gap: 6px; }
-        .photo-btn { background: var(--bg-input); border: 1px solid var(--border); border-radius: 10px; font-size: 22px; cursor: pointer; }
+        .name-row { display: grid; grid-template-columns: 1fr; gap: 6px; }
+        .photo-btn { background: var(--bg-input); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 9px; font-size: 15px; font-weight: 600; font-family: inherit; cursor: pointer; }
+        .nom-complet { font-size: 13px; color: var(--text-dim); margin-top: 6px; word-break: break-word; }
+        .nom-complet:empty { display: none; }
         .photo-btn:disabled { opacity: 0.4; cursor: default; }
         .ocr-status { font-size: 12px; margin-top: 6px; color: var(--text-dim); line-height: 1.4; }
         .ocr-status.ok { color: var(--success); }
         .ocr-status.ko { color: var(--warning); }
 
         /* N° Sécu */
-        .nir-row { display: grid; grid-template-columns: 1fr 44px 44px; gap: 6px; }
-        .nir-btn { background: var(--bg-input); color: var(--text); border: 1px solid var(--border); border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; }
+        .nir-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+        .nir-row input { grid-column: 1 / -1; }
+        .nir-btn { background: var(--bg-input); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 9px; font-size: 15px; font-weight: 600; cursor: pointer; }
         .nir-btn:disabled { opacity: 0.3; cursor: default; }
         .nir-status { font-size: 12px; margin-top: 6px; min-height: 0; }
         .nir-status.ok { color: var(--success); }
@@ -142,6 +145,7 @@
         .patient-item { background: var(--bg); border-radius: 10px; padding: 14px; padding-right: 80px; margin-bottom: 10px; position: relative; }
         .patient-item .name { font-weight: 600; margin-bottom: 4px; word-break: break-word; }
         .patient-item .details { font-size: 13px; color: var(--text-dim); word-break: break-word; }
+        .patient-item .secu { font-size: 13px; color: var(--text-dim); margin-top: 2px; font-variant-numeric: tabular-nums; }
         .patient-item .notes { font-size: 12px; color: var(--warning); font-style: italic; margin-top: 4px; word-break: break-word; }
         .patient-item .amounts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; font-size: 12px; }
         .patient-item .amounts span { padding: 4px 8px; border-radius: 6px; }
@@ -200,8 +204,9 @@
             <label for="nomPrenom">Nom Prénom</label>
             <div class="name-row">
                 <input type="text" id="nomPrenom" placeholder="Nom Prénom" autocomplete="off">
-                <button type="button" class="photo-btn" id="btnPhoto" aria-label="Photographier la carte Vitale">📷</button>
+                <button type="button" class="photo-btn" id="btnPhoto" aria-label="Photographier la carte Vitale">📷 Photo de la carte Vitale</button>
             </div>
+            <div class="nom-complet" id="nomComplet"></div>
             <input type="file" id="photoCarte" accept="image/*" capture="environment" hidden>
             <div class="ocr-status" id="ocrStatus"></div>
         </div>
@@ -374,7 +379,7 @@
        CONFIGURATION — tout ce qui concerne les tarifs et les règles est ici
        ===================================================================== */
 
-    var APP_VERSION = '2.3';
+    var APP_VERSION = '2.4';
     var SAUVEGARDE_JOURS = 7;   // la copie de secours d'une garde réinitialisée s'efface seule après ce délai
     var IK_TAUX = 0.61;
 
@@ -849,6 +854,15 @@
         appliquerAge();
     }
 
+    // Nom Prénom trop long pour la case (iPhone étroit) : répété en entier juste dessous.
+    function majNomComplet() {
+        var champ = $('nomPrenom'), style = getComputedStyle(champ);
+        var ctx = majNomComplet.ctx || (majNomComplet.ctx = document.createElement('canvas').getContext('2d'));
+        ctx.font = style.fontWeight + ' ' + style.fontSize + ' ' + style.fontFamily;
+        var place = champ.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+        $('nomComplet').textContent = ctx.measureText(champ.value).width > place ? champ.value.trim() : '';
+    }
+
     function surSaisieNir() {
         var n = nettoyerNir($('numSecu').value);
         $('numSecu').value = formaterNir(n);
@@ -914,6 +928,7 @@
     // Remet le formulaire à zéro pour le patient suivant.
     function nouveauPatient() {
         ['nomPrenom', 'numSecu', 'codeOrga', 'notes', 'de', 'ikKm'].forEach(function (id) { $(id).value = ''; });
+        majNomComplet();
         majStatutNir('');
         majBoutonsCorse('');
         statutOCR('', '');
@@ -958,6 +973,7 @@
         etat.formulaireId++;
         etat.ageAuto = null;
         $('nomPrenom').value = p.nomPrenom || '';
+        majNomComplet();
         $('codeOrga').value = p.codeOrga || '';
         $('notes').value = p.notes || '';
         var n = nettoyerNir(p.numSecu);
@@ -1021,13 +1037,13 @@
                 details.push((LIBELLES.situation[p.situation] || p.situation) +
                     (p.situation === 'normale' ? (p.tpChoice === 'tout' ? ' (Tout)' : ' (TP)') : ''));
                 details.push((p.cotations || []).join('+'));
-                if (p.numSecu) details.push(p.numSecu.substring(0, 7) + '...');
 
                 return '<div class="patient-item">' +
                     '<button type="button" class="icon-btn edit-btn" data-action="modifier" data-id="' + p.id + '" aria-label="Modifier">✎</button>' +
                     '<button type="button" class="icon-btn delete-btn" data-action="supprimer" data-id="' + p.id + '" aria-label="Supprimer">×</button>' +
                     '<div class="name">' + (i + 1) + '. ' + echapper(p.nomPrenom) + '</div>' +
                     '<div class="details">' + echapper(details.join(' | ')) + '</div>' +
+                    (p.numSecu ? '<div class="secu">' + echapper(p.numSecu) + '</div>' : '') +
                     (p.notes ? '<div class="notes">' + echapper(p.notes) + '</div>' : '') +
                     '<div class="amounts">' +
                         (p.tiersPayantSecu > 0 ? '<span class="amo">Sécu ' + formatMontant(p.tiersPayantSecu) + '</span>' : '') +
@@ -1769,6 +1785,7 @@
             surSaisieNir();
             var nomRempli = false;
             if (r.nom && !$('nomPrenom').value.trim()) { $('nomPrenom').value = r.nom; nomRempli = true; }
+            majNomComplet();
             var message = nomRempli ? '✓ Carte lue. Vérifiez le nom.' :
                 (r.nom ? '✓ N° Sécu lu (nom déjà saisi, non modifié).' : '✓ N° Sécu lu. Nom non lu, saisissez-le.');
             statutOCR(message + ' Enfant de moins de 16 ans ? La carte est celle du parent : corrigez le nom et cochez l\'âge.', 'ok');
@@ -1861,6 +1878,8 @@
         });
 
         $('btnPhoto').addEventListener('click', function () { if (!etat.ocrEnCours) $('photoCarte').click(); });
+        $('nomPrenom').addEventListener('input', majNomComplet);
+        window.addEventListener('resize', majNomComplet);
         $('photoCarte').addEventListener('change', function () {
             var fichier = this.files && this.files[0];
             this.value = '';                      // permet de reprendre la même photo
