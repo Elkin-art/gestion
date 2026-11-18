@@ -82,6 +82,8 @@
         .ocr-status { font-size: 12px; margin-top: 6px; color: var(--text-dim); line-height: 1.4; }
         .ocr-status.ok { color: var(--success); }
         .ocr-status.ko { color: var(--warning); }
+        .texte-lu-lien { background: none; border: none; padding: 0; margin-top: 6px; color: #60a5fa; font-size: 12px; font-family: inherit; text-decoration: underline; cursor: pointer; }
+        .texte-lu { margin-top: 6px; padding: 10px; background: var(--bg); border-radius: 8px; font-size: 12px; line-height: 1.4; color: var(--text-dim); white-space: pre-wrap; word-break: break-word; }
 
         /* N° Sécu */
         .nir-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
@@ -209,6 +211,8 @@
             <div class="nom-complet" id="nomComplet"></div>
             <input type="file" id="photoCarte" accept="image/*" capture="environment" hidden>
             <div class="ocr-status" id="ocrStatus"></div>
+            <button type="button" class="texte-lu-lien hidden" id="btnTexteLu">Voir le texte lu</button>
+            <pre class="texte-lu hidden" id="texteLu"></pre>
         </div>
 
         <div class="form-group">
@@ -379,7 +383,7 @@
        CONFIGURATION — tout ce qui concerne les tarifs et les règles est ici
        ===================================================================== */
 
-    var APP_VERSION = '2.4';
+    var APP_VERSION = '2.5';
     var SAUVEGARDE_JOURS = 7;   // la copie de secours d'une garde réinitialisée s'efface seule après ce délai
     var IK_TAUX = 0.61;
 
@@ -1381,10 +1385,21 @@
     var MOTS_CARTE = ['CARTE', 'VITALE', 'ASSURANCE', 'MALADIE', 'SECURITE', 'SÉCURITÉ', 'SOCIALE', 'REPUBLIQUE',
         'RÉPUBLIQUE', 'FRANCAISE', 'FRANÇAISE', 'VALIDITE', 'VALIDITÉ', 'EMISE', 'ÉMISE', 'NUMERO', 'NUMÉRO', 'AMELI', 'LIBERTE', 'EGALITE', 'FRATERNITE'];
 
+    var dernierTexteLu = '';   // texte brut de la dernière lecture de carte (en mémoire seulement)
+
     function statutOCR(texte, type) {
         var s = $('ocrStatus');
         s.textContent = texte;
         s.className = 'ocr-status' + (type ? ' ' + type : '');
+        if (!texte) { dernierTexteLu = ''; montrerLienTexteLu(); }   // formulaire vidé ou nouveau patient
+    }
+
+    // Lien « Voir le texte lu » : présent seulement s'il y a un texte ; le texte reste replié.
+    function montrerLienTexteLu() {
+        $('btnTexteLu').classList.toggle('hidden', !dernierTexteLu);
+        $('btnTexteLu').textContent = 'Voir le texte lu';
+        $('texteLu').classList.add('hidden');
+        $('texteLu').textContent = dernierTexteLu;
     }
 
     // Sur une carte, le numéro commence par 1 ou 2 (les numéros provisoires 7 / 8 n'ont pas de carte)
@@ -1451,8 +1466,29 @@
         return mots.join(' ');
     }
 
-    // Analyse le texte lu : N° Sécu (ancre), puis le nom juste au-dessus (carte avec photo)
-    // ou, à défaut, juste en dessous (ancienne carte sans photo).
+    // Prénom lu sur la ligne située juste au-dessus du nom ; '' si la ligne n'en est pas un.
+    // Contrairement au nom, il peut être imprimé (ou lu) avec des minuscules. Aucun chiffre admis
+    // (une date, un numéro), au moins 3 lettres (deux lettres en minuscules = souvent une tache).
+    function prenomDepuisLigne(ligne) {
+        var brut = String(ligne);
+        if (/\d/.test(brut)) return '';
+        var lettres = brut.match(/[A-Za-zÀ-ÖØ-öø-ÿ]/g) || [];
+        if (lettres.length < 3 || lettres.length / brut.replace(/\s/g, '').length < 0.8) return '';
+        var mots = nettoyerNom(brut).split(' ').filter(Boolean);
+        while (mots.length > 1 && mots[0].length === 1) mots.shift();
+        while (mots.length > 1 && mots[mots.length - 1].length === 1) mots.pop();
+        if (!mots.length || mots.length > 4) return '';
+        if (mots.some(function (m) { return contient(MOTS_CARTE, m); })) return '';
+        return mots.join(' ');
+    }
+
+    // « AUDREY » → « Audrey », « MARIE-CHRISTINE » → « Marie-Christine »
+    function enPrenom(texte) {
+        return texte.toLowerCase().replace(/(^|[ '-])([a-zà-öø-ÿ])/g, function (_, sep, c) { return sep + c.toUpperCase(); });
+    }
+
+    // Analyse le texte lu : N° Sécu (ancre), puis le NOM juste au-dessus et le PRÉNOM au-dessus du nom
+    // (carte avec photo) → « NOM Prénom » ; à défaut, le nom juste en dessous (ancienne carte sans photo).
     function analyserTexteCarte(texte) {
         var lignes = String(texte || '').split(/\r?\n/).map(function (l) { return l.trim(); }).filter(Boolean);
         var trouve = null, indexNir = -1, finNir = -1, i, r;
@@ -1468,19 +1504,30 @@
         }
         if (!trouve) return { nir: null, nom: null };
 
-        // Jusqu'à 2 lignes de nom qui se suivent ; une ligne parasite très courte au milieu est ignorée une fois
+        // Jusqu'à 2 lignes de nom qui se suivent, de la plus proche du numéro à la plus éloignée ;
+        // une ligne parasite très courte au milieu est ignorée une fois
         function ramasser(depart, pas) {
             var morceaux = [], saut = false, nom;
             for (var j = depart; j >= 0 && j < lignes.length && morceaux.length < 2; j += pas) {
                 nom = nomDepuisLigne(lignes[j]);
-                if (nom) { if (pas < 0) morceaux.unshift(nom); else morceaux.push(nom); }
+                if (nom) morceaux.push({ index: j, texte: nom });
                 else if (morceaux.length) { if (saut || lignes[j].length > 3) break; saut = true; }
             }
             return morceaux;
         }
-        var morceaux = ramasser(indexNir - 1, -1);
-        if (!morceaux.length) morceaux = ramasser(finNir + 1, 1);
-        return { nir: trouve.nir, nom: morceaux.join(' ') || null };
+        // Carte avec photo : le NOM est juste au-dessus du numéro, le PRÉNOM au-dessus du nom
+        var haut = ramasser(indexNir - 1, -1);
+        if (haut.length) {
+            var nom = haut[0].texte, prenom = haut.length > 1 ? haut[1].texte : '';
+            for (var k = haut[0].index - 1, saute = false; !prenom && k >= 0; k--) {
+                prenom = prenomDepuisLigne(lignes[k]);
+                if (!prenom) { if (saute || lignes[k].length > 3) break; saute = true; }
+            }
+            return { nir: trouve.nir, nom: nom + (prenom ? ' ' + enPrenom(prenom) : '') };
+        }
+        // Ancienne carte sans photo : le nom est sous le numéro
+        var bas = ramasser(finNir + 1, 1);
+        return { nir: trouve.nir, nom: bas.map(function (m) { return m.texte; }).join(' ') || null };
     }
 
     function simdDisponible() {
@@ -1710,6 +1757,7 @@
                 return worker.recognize(image());
             }).then(function (r) {
                 var texte = r.data.text || '', resultat = analyserTexteCarte(texte);
+                dernierTexteLu = texte;
                 // Mots imprimés sur toutes les cartes : s'ils sont lus, la carte est dans ce sens
                 resultat.endroit = /mise le|vitale|assurance|maladie/i.test(texte);
                 resultat.etape = nom;
@@ -1777,6 +1825,7 @@
             return lirePhoto(worker, source);
         }).then(function (r) {
             if (!toujoursLeMemeFormulaire()) return;   // patient ajouté/annulé pendant la lecture
+            montrerLienTexteLu();
             if (!r.nir) {
                 statutOCR('⚠️ Carte non lue. Reprenez la photo à plat, bien éclairée, sans reflet, ou saisissez à la main.', 'ko');
                 return;
@@ -1879,6 +1928,10 @@
 
         $('btnPhoto').addEventListener('click', function () { if (!etat.ocrEnCours) $('photoCarte').click(); });
         $('nomPrenom').addEventListener('input', majNomComplet);
+        $('btnTexteLu').addEventListener('click', function () {
+            var cache = $('texteLu').classList.toggle('hidden');
+            this.textContent = cache ? 'Voir le texte lu' : 'Masquer le texte lu';
+        });
         window.addEventListener('resize', majNomComplet);
         $('photoCarte').addEventListener('change', function () {
             var fichier = this.files && this.files[0];
